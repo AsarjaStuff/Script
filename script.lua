@@ -1,226 +1,210 @@
-local TweenService = game:GetService("TweenService")
+-- Pet Controller UI
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui")
 
-----------------------------------------------------
--- GUI CREATION
-----------------------------------------------------
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PetControllerUI"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ModernUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = PlayerGui
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Parent = screenGui
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
 
-local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 500, 0, 320)
-Main.Position = UDim2.new(0.5, -250, 0.5, -160)
-Main.BackgroundColor3 = Color3.fromRGB(25,25,30)
-Main.Parent = ScreenGui
-Main.Active = true
-Main.Draggable = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+-- Title Label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Parent = mainFrame
+titleLabel.Size = UDim2.new(1, 0, 0, 30)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+titleLabel.BorderSizePixel = 0
+titleLabel.Text = "Pet Controller"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 16
 
-----------------------------------------------------
--- TITLE BAR
-----------------------------------------------------
+-- Pet Name Input
+local inputFrame = Instance.new("Frame")
+inputFrame.Name = "InputFrame"
+inputFrame.Parent = mainFrame
+inputFrame.Size = UDim2.new(1, -20, 0, 30)
+inputFrame.Position = UDim2.new(0, 10, 0, 40)
+inputFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.15)
+inputFrame.BorderSizePixel = 0
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,0,0,40)
-Title.Text = "✨ Modern Control Panel"
-Title.TextSize = 20
-Title.TextColor3 = Color3.new(1,1,1)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.Parent = Main
+local petNameInput = Instance.new("TextBox")
+petNameInput.Name = "PetNameInput"
+petNameInput.Parent = inputFrame
+petNameInput.Size = UDim2.new(1, -10, 1, 0)
+petNameInput.Position = UDim2.new(0, 5, 0, 0)
+petNameInput.BackgroundColor3 = Color3.new(0.05, 0.05, 0.05)
+petNameInput.BorderSizePixel = 0
+petNameInput.Text = "Frost Dragon"
+petNameInput.TextColor3 = Color3.new(1, 1, 1)
+petNameInput.Font = Enum.Font.SourceSans
+petNameInput.TextSize = 14
 
-----------------------------------------------------
--- TAB HOLDER
-----------------------------------------------------
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Parent = mainFrame
+statusLabel.Size = UDim2.new(1, -20, 0, 20)
+statusLabel.Position = UDim2.new(0, 10, 0, 80)
+statusLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "Enter pet name and click Find API"
+statusLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.TextSize = 12
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local TabHolder = Instance.new("Frame")
-TabHolder.Size = UDim2.new(0,120,1,-40)
-TabHolder.Position = UDim2.new(0,0,0,40)
-TabHolder.BackgroundColor3 = Color3.fromRGB(30,30,35)
-TabHolder.Parent = Main
+-- Find API Button
+local findApiButton = Instance.new("TextButton")
+findApiButton.Name = "FindApiButton"
+findApiButton.Parent = mainFrame
+findApiButton.Size = UDim2.new(1, -20, 0, 30)
+findApiButton.Position = UDim2.new(0, 10, 0, 110)
+findApiButton.BackgroundColor3 = Color3.new(0.2, 0.4, 0.8)
+findApiButton.BorderSizePixel = 0
+findApiButton.Text = "Find API"
+findApiButton.TextColor3 = Color3.new(1, 1, 1)
+findApiButton.Font = Enum.Font.SourceSansBold
+findApiButton.TextSize = 14
 
-Instance.new("UICorner", TabHolder).CornerRadius = UDim.new(0,10)
+-- Drop Button (initially disabled)
+local dropButton = Instance.new("TextButton")
+dropButton.Name = "DropButton"
+dropButton.Parent = mainFrame
+dropButton.Size = UDim2.new(1, -20, 0, 40)
+dropButton.Position = UDim2.new(0, 10, 0, 160)
+dropButton.BackgroundColor3 = Color3.new(0.6, 0.2, 0.2)
+dropButton.BorderSizePixel = 0
+dropButton.Text = "Drop Pet"
+dropButton.TextColor3 = Color3.new(1, 1, 1)
+dropButton.Font = Enum.Font.SourceSansBold
+dropButton.TextSize = 14
+dropButton.Active = false
 
-----------------------------------------------------
--- CONTENT FRAME
-----------------------------------------------------
+-- Pick Up Button (initially disabled)
+local pickUpButton = Instance.new("TextButton")
+pickUpButton.Name = "PickUpButton"
+pickUpButton.Parent = mainFrame
+pickUpButton.Size = UDim2.new(1, -20, 0, 40)
+pickUpButton.Position = UDim2.new(0, 10, 0, 210)
+pickUpButton.BackgroundColor3 = Color3.new(0.2, 0.6, 0.2)
+pickUpButton.BorderSizePixel = 0
+pickUpButton.Text = "Pick Up Pet"
+pickUpButton.TextColor3 = Color3.new(1, 1, 1)
+pickUpButton.Font = Enum.Font.SourceSansBold
+pickUpButton.TextSize = 14
+pickUpButton.Active = false
 
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1,-120,1,-40)
-Content.Position = UDim2.new(0,120,0,40)
-Content.BackgroundTransparency = 1
-Content.Parent = Main
+-- Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Parent = mainFrame
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+closeButton.BorderSizePixel = 0
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextSize = 14
 
-----------------------------------------------------
--- TAB SYSTEM
-----------------------------------------------------
+-- Variables to store found remotes
+local dropRemote = nil
+local pickUpRemote = nil
+local foundPet = nil
 
-local Tabs = {}
-local function CreateTab(name)
-
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1,0,0,40)
-    Button.Text = name
-    Button.Font = Enum.Font.Gotham
-    Button.TextColor3 = Color3.new(1,1,1)
-    Button.BackgroundTransparency = 1
-    Button.Parent = TabHolder
-
-    local Page = Instance.new("Frame")
-    Page.Size = UDim2.new(1,0,1,0)
-    Page.Visible = false
-    Page.BackgroundTransparency = 1
-    Page.Parent = Content
-
-    local Layout = Instance.new("UIListLayout", Page)
-    Layout.Padding = UDim.new(0,8)
-
-    Tabs[Button] = Page
-
-    Button.MouseButton1Click:Connect(function()
-        for _,v in pairs(Content:GetChildren()) do
-            if v:IsA("Frame") then
-                v.Visible = false
-            end
-        end
-        Page.Visible = true
-    end)
-
-    return Page
+-- Function to find API remotes
+local function findApiRemotes(petName)
+    statusLabel.Text = "Searching for API..."
+    
+    -- Find the pet
+    foundPet = workspace:WaitForChild("Pets"):FindFirstChild(petName)
+    if not foundPet then
+        statusLabel.Text = "Pet not found!"
+        statusLabel.TextColor3 = Color3.new(1, 0.2, 0.2)
+        return false
+    end
+    
+    -- Find the API folder
+    local apiFolder = game:GetService("ReplicatedStorage"):WaitForChild("API")
+    if not apiFolder then
+        statusLabel.Text = "API folder not found!"
+        statusLabel.TextColor3 = Color3.new(1, 0.2, 0.2)
+        return false
+    end
+    
+    -- Search for drop remote
+    local dropPatterns = {"pSegluJDwBhdcuDdfC", "DropPet", "Drop", "pDrop"}
+    for _, pattern in ipairs(dropPatterns) do
+        dropRemote = apiFolder:FindFirstChild(pattern)
+        if dropRemote then break end
+    end
+    
+    -- Search for pick up remote
+    local pickUpPatterns = {"pSegluJDwEmkdCceB", "PickUpPet", "PickUp", "pPickUp"}
+    for _, pattern in ipairs(pickUpPatterns) do
+        pickUpRemote = apiFolder:FindFirstChild(pattern)
+        if pickUpRemote then break end
+    end
+    
+    -- Check if remotes were found
+    if dropRemote and pickUpRemote then
+        statusLabel.Text = "API found! Ready to use."
+        statusLabel.TextColor3 = Color3.new(0.2, 1, 0.2)
+        dropButton.Active = true
+        dropButton.BackgroundColor3 = Color3.new(0.8, 0.3, 0.3)
+        pickUpButton.Active = true
+        pickUpButton.BackgroundColor3 = Color3.new(0.3, 0.8, 0.3)
+        return true
+    else
+        statusLabel.Text = "API remotes not found!"
+        statusLabel.TextColor3 = Color3.new(1, 0.2, 0.2)
+        return false
+    end
 end
 
-----------------------------------------------------
--- CREATE TABS
-----------------------------------------------------
-
-local MainTab = CreateTab("Main")
-local SettingsTab = CreateTab("Settings")
-
-MainTab.Visible = true
-
-----------------------------------------------------
--- UI ELEMENT FUNCTIONS
-----------------------------------------------------
-
-local function CreateButton(parent, text, callback)
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1,-20,0,40)
-    Button.BackgroundColor3 = Color3.fromRGB(50,50,60)
-    Button.Text = text
-    Button.Font = Enum.Font.Gotham
-    Button.TextColor3 = Color3.new(1,1,1)
-    Button.Parent = parent
-    Instance.new("UICorner", Button)
-
-    Button.MouseButton1Click:Connect(callback)
-end
-
-local function CreateToggle(parent, text)
-    local Toggle = Instance.new("TextButton")
-    Toggle.Size = UDim2.new(1,-20,0,40)
-    Toggle.BackgroundColor3 = Color3.fromRGB(50,50,60)
-    Toggle.Text = text .. " : OFF"
-    Toggle.Font = Enum.Font.Gotham
-    Toggle.TextColor3 = Color3.new(1,1,1)
-    Toggle.Parent = parent
-    Instance.new("UICorner", Toggle)
-
-    local state = false
-
-    Toggle.MouseButton1Click:Connect(function()
-        state = not state
-        Toggle.Text = text .. " : " .. (state and "ON" or "OFF")
-    end)
-end
-
-local function CreateSlider(parent, text, min, max)
-
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(1,-20,0,50)
-    Frame.BackgroundTransparency = 1
-    Frame.Parent = parent
-
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1,0,0,20)
-    Label.Text = text .. " : " .. min
-    Label.BackgroundTransparency = 1
-    Label.TextColor3 = Color3.new(1,1,1)
-    Label.Font = Enum.Font.Gotham
-    Label.Parent = Frame
-
-    local Bar = Instance.new("Frame")
-    Bar.Size = UDim2.new(1,0,0,10)
-    Bar.Position = UDim2.new(0,0,0,30)
-    Bar.BackgroundColor3 = Color3.fromRGB(70,70,80)
-    Bar.Parent = Frame
-    Instance.new("UICorner", Bar)
-
-    local Fill = Instance.new("Frame")
-    Fill.Size = UDim2.new(0,0,1,0)
-    Fill.BackgroundColor3 = Color3.fromRGB(150,100,255)
-    Fill.Parent = Bar
-    Instance.new("UICorner", Fill)
-
-    Bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-
-            local move
-            move = game:GetService("UserInputService").InputChanged:Connect(function(i)
-                if i.UserInputType == Enum.UserInputType.MouseMovement then
-
-                    local percent = math.clamp(
-                        (i.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X,
-                        0,1
-                    )
-
-                    Fill.Size = UDim2.new(percent,0,1,0)
-
-                    local value = math.floor(min + (max-min)*percent)
-                    Label.Text = text .. " : " .. value
-                end
-            end)
-
-            game:GetService("UserInputService").InputEnded:Wait()
-            if move then move:Disconnect() end
-        end
-    end)
-end
-
-----------------------------------------------------
--- MAIN TAB CONTENT
-----------------------------------------------------
-
-CreateButton(MainTab,"🚀 Example Button",function()
-    print("Button clicked!")
+-- Button connections
+findApiButton.MouseButton1Click:Connect(function()
+    local petName = petNameInput.Text
+    if petName and petName ~= "" then
+        findApiRemotes(petName)
+    else
+        statusLabel.Text = "Please enter a pet name!"
+        statusLabel.TextColor3 = Color3.new(1, 0.2, 0.2)
+    end
 end)
 
-CreateToggle(MainTab,"🔥 Power Mode")
-
-CreateSlider(MainTab,"⚡ Speed",0,100)
-
-----------------------------------------------------
--- SETTINGS TAB CONTENT
-----------------------------------------------------
-
-CreateToggle(SettingsTab,"🌙 Dark Mode")
-
-CreateButton(SettingsTab,"❌ Close UI",function()
-    ScreenGui:Destroy()
+dropButton.MouseButton1Click:Connect(function()
+    if dropRemote and foundPet then
+        dropRemote:FireServer(foundPet)
+        statusLabel.Text = "Pet dropped!"
+        statusLabel.TextColor3 = Color3.new(1, 1, 0)
+    end
 end)
 
-----------------------------------------------------
--- OPEN ANIMATION
-----------------------------------------------------
+pickUpButton.MouseButton1Click:Connect(function()
+    if pickUpRemote and foundPet then
+        pickUpRemote:FireServer(foundPet)
+        statusLabel.Text = "Pet picked up!"
+        statusLabel.TextColor3 = Color3.new(0.2, 1, 1)
+    end
+end)
 
-Main.Size = UDim2.new(0,0,0,0)
-
-TweenService:Create(
-    Main,
-    TweenInfo.new(0.4,Enum.EasingStyle.Back),
-    {Size = UDim2.new(0,500,0,320)}
-):Play()
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
