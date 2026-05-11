@@ -10,8 +10,7 @@ function Sleep.FindBed()
 
             while current.Parent do
 
-                for k,v in pairs(current:GetAttributes()) do
-
+                for _,v in pairs(current:GetAttributes()) do
                     if tostring(v):match("^f%-") then
                         return tostring(v), obj
                     end

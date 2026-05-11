@@ -6,9 +6,9 @@ function Pets.GetPets()
 
     local list = {}
 
-    for _,pet in pairs(folder:GetChildren()) do
-        if pet:IsA("Model") then
-            table.insert(list, pet)
+    for _,v in pairs(folder:GetChildren()) do
+        if v:IsA("Model") then
+            table.insert(list, v)
         end
     end
 
