@@ -1,5 +1,25 @@
 local Care = {}
 
+local function getFurnitureId(instance)
+    for _,v in pairs(instance:GetAttributes()) do
+        local str = tostring(v)
+        if str:match("^f%-") then
+            return str
+        end
+    end
+    return nil
+end
+
+local function getAncestorText(instance)
+    local parts = {}
+    local current = instance
+    while current do
+        table.insert(parts, current.Name:lower())
+        current = current.Parent
+    end
+    return table.concat(parts, " ")
+end
+
 local function resolveTarget(obj)
     if not obj then
         return nil
@@ -17,64 +37,43 @@ local function resolveTarget(obj)
     return obj:FindFirstChildOfClass("BasePart")
 end
 
-function Care.FindFood()
+local function findUseBlockByKeyword(keywords)
+    local fallback
     for _,obj in pairs(workspace:GetDescendants()) do
         if obj.Name == "UseBlock" then
-            local target = resolveTarget(obj)
-            if target then
-                local current = obj
-                while current.Parent do
-                    for _,v in pairs(current:GetAttributes()) do
-                        if tostring(v) == "f-32" then  -- Food
-                            return tostring(v), target
+            local furnitureId = getFurnitureId(obj)
+            if furnitureId then
+                local text = getAncestorText(obj)
+                for _,keyword in ipairs(keywords) do
+                    if text:find(keyword, 1, true) then
+                        local target = resolveTarget(obj)
+                        if target then
+                            return furnitureId, target
                         end
                     end
-                    current = current.Parent
+                end
+                if not fallback then
+                    local target = resolveTarget(obj)
+                    if target then
+                        fallback = {id = furnitureId, target = target}
+                    end
                 end
             end
         end
     end
-    return nil,nil
+    return fallback and fallback.id, fallback and fallback.target
+end
+
+function Care.FindFood()
+    return findUseBlockByKeyword({"food", "eat", "kitchen", "meal", "dish", "snack", "feeder", "hungry"})
 end
 
 function Care.FindDrink()
-    for _,obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "UseBlock" then
-            local target = resolveTarget(obj)
-            if target then
-                local current = obj
-                while current.Parent do
-                    for _,v in pairs(current:GetAttributes()) do
-                        if tostring(v) == "f-24" then  -- Drink
-                            return tostring(v), target
-                        end
-                    end
-                    current = current.Parent
-                end
-            end
-        end
-    end
-    return nil,nil
+    return findUseBlockByKeyword({"drink", "water", "fountain", "tap", "bottle", "hydration", "thirst"})
 end
 
 function Care.FindShower()
-    for _,obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "UseBlock" then
-            local target = resolveTarget(obj)
-            if target then
-                local current = obj
-                while current.Parent do
-                    for _,v in pairs(current:GetAttributes()) do
-                        if tostring(v) == "f-12" then  -- Shower
-                            return tostring(v), target
-                        end
-                    end
-                    current = current.Parent
-                end
-            end
-        end
-    end
-    return nil,nil
+    return findUseBlockByKeyword({"shower", "bath", "wash", "clean", "hygiene", "spa"})
 end
 
 return Care
