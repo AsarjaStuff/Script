@@ -24,12 +24,13 @@ end
 local Remotes = load("remote")
 local Pets = load("pets")
 local Sleep = load("sleep")
+local Care = load("care")
 local UI = load("ui")
 
 print("INIT UI")
 
 if UI and UI.Init then
-    UI.Init(Pets, Sleep, Remotes)
+    UI.Init(Pets, Sleep, Care, Remotes)
 else
     warn("UI missing Init")
 end

@@ -1,6 +1,6 @@
 local UI = {}
 
-function UI.Init(Pets, Sleep, Remotes)
+function UI.Init(Pets, Sleep, Care, Remotes)
 
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,8 +23,8 @@ function UI.Init(Pets, Sleep, Remotes)
 
     local main = Instance.new("Frame")
     main.Parent = screenGui
-    main.Size = UDim2.new(0,350,0,500)
-    main.Position = UDim2.new(0.5,-175,0.5,-250)
+    main.Size = UDim2.new(0,350,0,650)
+    main.Position = UDim2.new(0.5,-175,0.5,-325)
     main.BackgroundColor3 = Color3.fromRGB(20,20,20)
     main.BorderSizePixel = 0
     main.Active = true
@@ -122,6 +122,36 @@ function UI.Init(Pets, Sleep, Remotes)
     sleepBtn.TextColor3 = Color3.new(1,1,1)
     sleepBtn.Font = Enum.Font.SourceSansBold
     sleepBtn.TextSize = 18
+
+    local eatBtn = Instance.new("TextButton")
+    eatBtn.Parent = main
+    eatBtn.Position = UDim2.new(0,10,0,475)
+    eatBtn.Size = UDim2.new(1,-20,0,45)
+    eatBtn.BackgroundColor3 = Color3.fromRGB(180,100,60)
+    eatBtn.Text = "🍎 Feed Pet"
+    eatBtn.TextColor3 = Color3.new(1,1,1)
+    eatBtn.Font = Enum.Font.SourceSansBold
+    eatBtn.TextSize = 18
+
+    local drinkBtn = Instance.new("TextButton")
+    drinkBtn.Parent = main
+    drinkBtn.Position = UDim2.new(0,10,0,530)
+    drinkBtn.Size = UDim2.new(1,-20,0,45)
+    drinkBtn.BackgroundColor3 = Color3.fromRGB(60,100,180)
+    drinkBtn.Text = "🥤 Give Pet Drink"
+    drinkBtn.TextColor3 = Color3.new(1,1,1)
+    drinkBtn.Font = Enum.Font.SourceSansBold
+    drinkBtn.TextSize = 18
+
+    local showerBtn = Instance.new("TextButton")
+    showerBtn.Parent = main
+    showerBtn.Position = UDim2.new(0,10,0,585)
+    showerBtn.Size = UDim2.new(1,-20,0,45)
+    showerBtn.BackgroundColor3 = Color3.fromRGB(100,180,180)
+    showerBtn.Text = "🚿 Shower Pet"
+    showerBtn.TextColor3 = Color3.new(1,1,1)
+    showerBtn.Font = Enum.Font.SourceSansBold
+    showerBtn.TextSize = 18
 
     --// Variables
     local selectedPet = nil
@@ -232,6 +262,90 @@ function UI.Init(Pets, Sleep, Remotes)
         print("SENDING SLEEP REQUEST")
         ActivateFurniture:InvokeServer(unpack(args))
         status.Text = selectedPet.Name.." is sleeping"
+    end)
+
+    --// Eat
+    eatBtn.MouseButton1Click:Connect(function()
+        if not selectedPet then
+            status.Text = "No pet selected"
+            return
+        end
+        status.Text = "Searching for food..."
+        local furnitureId, obj = Care.FindFood()
+        if not furnitureId or not obj then
+            status.Text = "No food found"
+            warn("FOOD NOT FOUND")
+            return
+        end
+        print("USING FOOD:",furnitureId)
+        local args = {
+            player,
+            furnitureId,
+            "UseBlock",
+            {
+                cframe = obj.CFrame
+            },
+            selectedPet
+        }
+        print("SENDING EAT REQUEST")
+        ActivateFurniture:InvokeServer(unpack(args))
+        status.Text = selectedPet.Name.." is eating"
+    end)
+
+    --// Drink
+    drinkBtn.MouseButton1Click:Connect(function()
+        if not selectedPet then
+            status.Text = "No pet selected"
+            return
+        end
+        status.Text = "Searching for drink..."
+        local furnitureId, obj = Care.FindDrink()
+        if not furnitureId or not obj then
+            status.Text = "No drink found"
+            warn("DRINK NOT FOUND")
+            return
+        end
+        print("USING DRINK:",furnitureId)
+        local args = {
+            player,
+            furnitureId,
+            "UseBlock",
+            {
+                cframe = obj.CFrame
+            },
+            selectedPet
+        }
+        print("SENDING DRINK REQUEST")
+        ActivateFurniture:InvokeServer(unpack(args))
+        status.Text = selectedPet.Name.." is drinking"
+    end)
+
+    --// Shower
+    showerBtn.MouseButton1Click:Connect(function()
+        if not selectedPet then
+            status.Text = "No pet selected"
+            return
+        end
+        status.Text = "Searching for shower..."
+        local furnitureId, obj = Care.FindShower()
+        if not furnitureId or not obj then
+            status.Text = "No shower found"
+            warn("SHOWER NOT FOUND")
+            return
+        end
+        print("USING SHOWER:",furnitureId)
+        local args = {
+            player,
+            furnitureId,
+            "UseBlock",
+            {
+                cframe = obj.CFrame
+            },
+            selectedPet
+        }
+        print("SENDING SHOWER REQUEST")
+        ActivateFurniture:InvokeServer(unpack(args))
+        status.Text = selectedPet.Name.." is showering"
     end)
 
     --// Close
