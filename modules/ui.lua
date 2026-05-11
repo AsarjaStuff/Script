@@ -157,6 +157,32 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local selectedPet = nil
     local dropdownOpen = false
 
+    local function resolveCFrame(target, expectedName)
+        if not target then
+            return nil
+        end
+
+        if target:IsA("BasePart") then
+            return target.CFrame
+        end
+
+        if target:IsA("Model") and target.PrimaryPart then
+            return target.PrimaryPart.CFrame
+        end
+
+        local childPart = target:FindFirstChild(expectedName)
+        if childPart and childPart:IsA("BasePart") then
+            return childPart.CFrame
+        end
+
+        local anyPart = target:FindFirstChildOfClass("BasePart")
+        if anyPart then
+            return anyPart.CFrame
+        end
+
+        return nil
+    end
+
     --// Refresh Pets
     local function refreshPets()
 
@@ -249,13 +275,19 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             warn("BED NOT FOUND")
             return
         end
-        print("USING BED:",furnitureId)
+        local sleepCFrame = resolveCFrame(seat, "Seat1")
+        if not sleepCFrame then
+            status.Text = "Invalid bed position"
+            warn("BED CFRAME MISSING")
+            return
+        end
+        print("USING BED:",furnitureId, seat:GetFullName())
         local args = {
             player,
             furnitureId,
             "Seat1",
             {
-                cframe = seat.CFrame
+                cframe = sleepCFrame
             },
             selectedPet
         }
@@ -277,13 +309,19 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             warn("FOOD NOT FOUND")
             return
         end
-        print("USING FOOD:",furnitureId)
+        local foodCFrame = resolveCFrame(obj, "UseBlock")
+        if not foodCFrame then
+            status.Text = "Invalid food position"
+            warn("FOOD CFRAME MISSING")
+            return
+        end
+        print("USING FOOD:",furnitureId, obj:GetFullName())
         local args = {
             player,
             furnitureId,
             "UseBlock",
             {
-                cframe = obj.CFrame
+                cframe = foodCFrame
             },
             selectedPet
         }
@@ -305,13 +343,19 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             warn("DRINK NOT FOUND")
             return
         end
-        print("USING DRINK:",furnitureId)
+        local drinkCFrame = resolveCFrame(obj, "UseBlock")
+        if not drinkCFrame then
+            status.Text = "Invalid drink position"
+            warn("DRINK CFRAME MISSING")
+            return
+        end
+        print("USING DRINK:",furnitureId, obj:GetFullName())
         local args = {
             player,
             furnitureId,
             "UseBlock",
             {
-                cframe = obj.CFrame
+                cframe = drinkCFrame
             },
             selectedPet
         }
@@ -333,13 +377,19 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             warn("SHOWER NOT FOUND")
             return
         end
-        print("USING SHOWER:",furnitureId)
+        local showerCFrame = resolveCFrame(obj, "UseBlock")
+        if not showerCFrame then
+            status.Text = "Invalid shower position"
+            warn("SHOWER CFRAME MISSING")
+            return
+        end
+        print("USING SHOWER:",furnitureId, obj:GetFullName())
         local args = {
             player,
             furnitureId,
             "UseBlock",
             {
-                cframe = obj.CFrame
+                cframe = showerCFrame
             },
             selectedPet
         }
