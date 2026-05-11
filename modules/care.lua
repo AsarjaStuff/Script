@@ -44,10 +44,12 @@ local function findUseBlockByKeyword(keywords)
             local furnitureId = getFurnitureId(obj)
             if furnitureId then
                 local text = getAncestorText(obj)
+                print("DEBUG: UseBlock candidate", obj:GetFullName(), furnitureId, text)
                 for _,keyword in ipairs(keywords) do
                     if text:find(keyword, 1, true) then
                         local target = resolveTarget(obj)
                         if target then
+                            print("DEBUG: matched keyword", keyword, "for", obj:GetFullName())
                             return furnitureId, target
                         end
                     end
@@ -58,8 +60,15 @@ local function findUseBlockByKeyword(keywords)
                         fallback = {id = furnitureId, target = target}
                     end
                 end
+            else
+                print("DEBUG: UseBlock candidate no furnitureId", obj:GetFullName())
             end
         end
+    end
+    if fallback then
+        print("DEBUG: using fallback UseBlock", fallback.id, fallback.target:GetFullName())
+    else
+        print("DEBUG: no UseBlock fallback found")
     end
     return fallback and fallback.id, fallback and fallback.target
 end

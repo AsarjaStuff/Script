@@ -26,10 +26,12 @@ function Sleep.FindBed()
     for _,obj in pairs(workspace:GetDescendants()) do
         if obj.Name == "Seat1" then
             local furnitureId = getFurnitureId(obj)
+            local text = getAncestorText(obj)
+            print("DEBUG: Seat1 candidate", obj:GetFullName(), furnitureId, text)
             if furnitureId then
-                local text = getAncestorText(obj)
                 if text:find("bed") or text:find("sleep") then
                     if not text:find("toilet") and not text:find("bath") and not text:find("shower") then
+                        print("DEBUG: matched sleep bed", obj:GetFullName(), furnitureId)
                         return furnitureId, obj
                     end
                 end
@@ -39,9 +41,11 @@ function Sleep.FindBed()
     end
 
     if #beds > 0 then
+        print("DEBUG: using fallback bed", beds[1].id, beds[1].obj:GetFullName())
         return beds[1].id, beds[1].obj
     end
 
+    print("DEBUG: no bed found")
     return nil, nil
 end
 

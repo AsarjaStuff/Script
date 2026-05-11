@@ -215,11 +215,15 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 listFrame.Visible = false
                 dropdownOpen = false
                 status.Text = "Selected: "..pet.Name
+                print("DEBUG: pet selected", pet.Name, pet:GetFullName())
             end)
         end
 
         listFrame.CanvasSize = UDim2.new(0,0,0,count*35)
         status.Text = "Found "..count.." pets"
+        for _,pet in ipairs(pets) do
+            print("DEBUG: pet found", pet.Name, pet:GetFullName())
+        end
     end
 
     --// Dropdown
@@ -242,9 +246,11 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             status.Text = "No pet selected"
             return
         end
+        print("DEBUG: hold pet", selectedPet.Name, selectedPet:GetFullName())
         local args = {
             selectedPet
         }
+        print("DEBUG: HoldBaby args", args)
         HoldBaby:FireServer(unpack(args))
         status.Text = "Holding "..selectedPet.Name
     end)
@@ -268,20 +274,23 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             status.Text = "No pet selected"
             return
         end
+        print("DEBUG: action sleep", selectedPet.Name, selectedPet:GetFullName())
         status.Text = "Searching for bed..."
         local furnitureId, seat = Sleep.FindBed()
+        print("DEBUG: Sleep.FindBed returned", furnitureId, seat and seat:GetFullName() or nil)
         if not furnitureId or not seat then
             status.Text = "No valid bed found"
             warn("BED NOT FOUND")
             return
         end
         local sleepCFrame = resolveCFrame(seat, "Seat1")
+        print("DEBUG: resolved sleep CFrame", sleepCFrame)
         if not sleepCFrame then
             status.Text = "Invalid bed position"
             warn("BED CFRAME MISSING")
             return
         end
-        print("USING BED:",furnitureId, seat:GetFullName())
+        print("USING BED:", furnitureId, seat:GetFullName())
         local args = {
             player,
             furnitureId,
@@ -291,7 +300,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             },
             selectedPet
         }
-        print("SENDING SLEEP REQUEST")
+        print("SENDING SLEEP REQUEST", furnitureId, seat:GetFullName())
         ActivateFurniture:InvokeServer(unpack(args))
         status.Text = selectedPet.Name.." is sleeping"
     end)
@@ -302,20 +311,23 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             status.Text = "No pet selected"
             return
         end
+        print("DEBUG: action eat", selectedPet.Name, selectedPet:GetFullName())
         status.Text = "Searching for food..."
         local furnitureId, obj = Care.FindFood()
+        print("DEBUG: Care.FindFood returned", furnitureId, obj and obj:GetFullName() or nil)
         if not furnitureId or not obj then
             status.Text = "No food found"
             warn("FOOD NOT FOUND")
             return
         end
         local foodCFrame = resolveCFrame(obj, "UseBlock")
+        print("DEBUG: resolved food CFrame", foodCFrame)
         if not foodCFrame then
             status.Text = "Invalid food position"
             warn("FOOD CFRAME MISSING")
             return
         end
-        print("USING FOOD:",furnitureId, obj:GetFullName())
+        print("USING FOOD:", furnitureId, obj:GetFullName())
         local args = {
             player,
             furnitureId,
@@ -325,7 +337,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             },
             selectedPet
         }
-        print("SENDING EAT REQUEST")
+        print("SENDING EAT REQUEST", furnitureId, obj:GetFullName())
         ActivateFurniture:InvokeServer(unpack(args))
         status.Text = selectedPet.Name.." is eating"
     end)
@@ -336,20 +348,23 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             status.Text = "No pet selected"
             return
         end
+        print("DEBUG: action drink", selectedPet.Name, selectedPet:GetFullName())
         status.Text = "Searching for drink..."
         local furnitureId, obj = Care.FindDrink()
+        print("DEBUG: Care.FindDrink returned", furnitureId, obj and obj:GetFullName() or nil)
         if not furnitureId or not obj then
             status.Text = "No drink found"
             warn("DRINK NOT FOUND")
             return
         end
         local drinkCFrame = resolveCFrame(obj, "UseBlock")
+        print("DEBUG: resolved drink CFrame", drinkCFrame)
         if not drinkCFrame then
             status.Text = "Invalid drink position"
             warn("DRINK CFRAME MISSING")
             return
         end
-        print("USING DRINK:",furnitureId, obj:GetFullName())
+        print("USING DRINK:", furnitureId, obj:GetFullName())
         local args = {
             player,
             furnitureId,
@@ -359,7 +374,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             },
             selectedPet
         }
-        print("SENDING DRINK REQUEST")
+        print("SENDING DRINK REQUEST", furnitureId, obj:GetFullName())
         ActivateFurniture:InvokeServer(unpack(args))
         status.Text = selectedPet.Name.." is drinking"
     end)
@@ -370,20 +385,23 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             status.Text = "No pet selected"
             return
         end
+        print("DEBUG: action shower", selectedPet.Name, selectedPet:GetFullName())
         status.Text = "Searching for shower..."
         local furnitureId, obj = Care.FindShower()
+        print("DEBUG: Care.FindShower returned", furnitureId, obj and obj:GetFullName() or nil)
         if not furnitureId or not obj then
             status.Text = "No shower found"
             warn("SHOWER NOT FOUND")
             return
         end
         local showerCFrame = resolveCFrame(obj, "UseBlock")
+        print("DEBUG: resolved shower CFrame", showerCFrame)
         if not showerCFrame then
             status.Text = "Invalid shower position"
             warn("SHOWER CFRAME MISSING")
             return
         end
-        print("USING SHOWER:",furnitureId, obj:GetFullName())
+        print("USING SHOWER:", furnitureId, obj:GetFullName())
         local args = {
             player,
             furnitureId,
@@ -393,7 +411,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             },
             selectedPet
         }
-        print("SENDING SHOWER REQUEST")
+        print("SENDING SHOWER REQUEST", furnitureId, obj:GetFullName())
         ActivateFurniture:InvokeServer(unpack(args))
         status.Text = selectedPet.Name.." is showering"
     end)
