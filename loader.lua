@@ -1,8 +1,35 @@
 local BASE = "https://raw.githubusercontent.com/AsarjaStuff/Script/main/modules/"
 
-local Remotes = loadstring(game:HttpGet(BASE.."remotes.lua"))()
-local Pets = loadstring(game:HttpGet(BASE.."pets.lua"))()
-local Sleep = loadstring(game:HttpGet(BASE.."sleep.lua"))()
-local UI = loadstring(game:HttpGet(BASE.."ui.lua"))()
+local function load(name)
+    print("loading", name)
 
-UI.Init(Pets, Sleep, Remotes)
+    local src = game:HttpGet(BASE..name..".lua")
+    local fn = loadstring(src)
+
+    if not fn then
+        warn("loadstring failed:", name)
+        return nil
+    end
+
+    local ok, result = pcall(fn)
+
+    if not ok then
+        warn("module crash:", name, result)
+        return nil
+    end
+
+    return result
+end
+
+local Remotes = load("remotes")
+local Pets = load("pets")
+local Sleep = load("sleep")
+local UI = load("ui")
+
+print("INIT UI")
+
+if UI and UI.Init then
+    UI.Init(Pets, Sleep, Remotes)
+else
+    warn("UI missing Init")
+end
