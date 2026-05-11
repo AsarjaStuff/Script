@@ -1,4 +1,4 @@
-local BASE = "https://raw.githubusercontent.com/YOURNAME/YOURREPO/main/modules/"
+local BASE = "https://raw.githubusercontent.com/AsarjaStuff/Script/main/modules/"
 
 local Remotes = loadstring(game:HttpGet(BASE.."remotes.lua"))()
 local Pets = loadstring(game:HttpGet(BASE.."pets.lua"))()
