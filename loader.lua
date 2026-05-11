@@ -21,7 +21,7 @@ local function load(name)
     return result
 end
 
-local Remotes = load("remotes")
+local Remotes = load("remote")
 local Pets = load("pets")
 local Sleep = load("sleep")
 local UI = load("ui")
