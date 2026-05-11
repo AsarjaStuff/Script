@@ -25,7 +25,7 @@ function Care.FindFood()
                 local current = obj
                 while current.Parent do
                     for _,v in pairs(current:GetAttributes()) do
-                        if tostring(v) == "f-9" then  -- Food
+                        if tostring(v) == "f-32" then  -- Food
                             return tostring(v), target
                         end
                     end
@@ -45,7 +45,7 @@ function Care.FindDrink()
                 local current = obj
                 while current.Parent do
                     for _,v in pairs(current:GetAttributes()) do
-                        if tostring(v) == "f-7" then  -- Drink
+                        if tostring(v) == "f-24" then  -- Drink
                             return tostring(v), target
                         end
                     end
@@ -65,7 +65,7 @@ function Care.FindShower()
                 local current = obj
                 while current.Parent do
                     for _,v in pairs(current:GetAttributes()) do
-                        if tostring(v) == "f-29" then  -- Shower
+                        if tostring(v) == "f-12" then  -- Shower
                             return tostring(v), target
                         end
                     end

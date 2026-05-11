@@ -6,7 +6,7 @@ function Sleep.FindBed()
             local current = obj
             while current.Parent do
                 for _,v in pairs(current:GetAttributes()) do
-                    if tostring(v) == "f-1" then  -- Sleep bed
+                    if tostring(v) == "f-26" then  -- Sleep bed
                         return tostring(v), obj
                     end
                 end
