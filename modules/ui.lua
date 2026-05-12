@@ -23,7 +23,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     local main = Instance.new("Frame")
     main.Parent = screenGui
-    main.Size = UDim2.new(0,350,0,650)
+    main.Size = UDim2.new(0,350,0,700)
     main.Position = UDim2.new(0.5,-175,0.5,-325)
     main.BackgroundColor3 = Color3.fromRGB(20,20,20)
     main.BorderSizePixel = 0
@@ -152,6 +152,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     showerBtn.TextColor3 = Color3.new(1,1,1)
     showerBtn.Font = Enum.Font.SourceSansBold
     showerBtn.TextSize = 18
+
+    local toiletBtn = Instance.new("TextButton")
+    toiletBtn.Parent = main
+    toiletBtn.Position = UDim2.new(0,10,0,640)
+    toiletBtn.Size = UDim2.new(1,-20,0,45)
+    toiletBtn.BackgroundColor3 = Color3.fromRGB(150,100,50)
+    toiletBtn.Text = "🚽 Use Toilet"
+    toiletBtn.TextColor3 = Color3.new(1,1,1)
+    toiletBtn.Font = Enum.Font.SourceSansBold
+    toiletBtn.TextSize = 18
 
     --// Variables
     local selectedPet = nil
@@ -414,6 +424,43 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         print("SENDING SHOWER REQUEST", furnitureId, obj:GetFullName())
         ActivateFurniture:InvokeServer(unpack(args))
         status.Text = selectedPet.Name.." is showering"
+    end)
+
+    --// Toilet
+    toiletBtn.MouseButton1Click:Connect(function()
+        if not selectedPet then
+            status.Text = "No pet selected"
+            return
+        end
+        print("DEBUG: action toilet", selectedPet.Name, selectedPet:GetFullName())
+        status.Text = "Searching for toilet..."
+        local furnitureId, obj = Care.FindToilet()
+        print("DEBUG: Care.FindToilet returned", furnitureId, obj and obj:GetFullName() or nil)
+        if not furnitureId or not obj then
+            status.Text = "No toilet found"
+            warn("TOILET NOT FOUND")
+            return
+        end
+        local toiletCFrame = resolveCFrame(obj, "Seat1")
+        print("DEBUG: resolved toilet CFrame", toiletCFrame)
+        if not toiletCFrame then
+            status.Text = "Invalid toilet position"
+            warn("TOILET CFRAME MISSING")
+            return
+        end
+        print("USING TOILET:", furnitureId, obj:GetFullName())
+        local args = {
+            player,
+            furnitureId,
+            "Seat1",
+            {
+                cframe = toiletCFrame
+            },
+            selectedPet
+        }
+        print("SENDING TOILET REQUEST", furnitureId, obj:GetFullName())
+        ActivateFurniture:InvokeServer(unpack(args))
+        status.Text = selectedPet.Name.." is using toilet"
     end)
 
     --// Close

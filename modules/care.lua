@@ -85,4 +85,8 @@ function Care.FindShower()
     return findUseBlockByKeyword({"shower", "bath", "wash", "shower", "ModernShower", "CheapPetBathtub"})
 end
 
+function Care.FindToilet()
+    return findUseBlockByKeyword({"toilet", "restroom", "bathroom", "wc"})
+end
+
 return Care
