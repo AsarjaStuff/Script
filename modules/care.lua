@@ -28,31 +28,16 @@ local function resolveTarget(obj)
     if not obj then
         return nil
     end
-
     if obj:IsA("BasePart") then
-        if obj.Name == "UseBlock" then
-            return obj
-        end
-
-        local model = obj:FindFirstAncestorOfClass("Model")
-        if model then
-            local useBlock = model:FindFirstChild("UseBlock", true)
-            if useBlock and useBlock:IsA("BasePart") then
-                return useBlock
-            end
-        end
-
         return obj
     end
-
     if obj:IsA("Model") then
-        local useBlock = obj:FindFirstChild("UseBlock", true)
-        if useBlock and useBlock:IsA("BasePart") then
-            return useBlock
+        local direct = obj:FindFirstChild("UseBlock")
+        if direct and direct:IsA("BasePart") then
+            return direct
         end
         return obj:FindFirstChildOfClass("BasePart")
     end
-
     return obj:FindFirstChildOfClass("BasePart")
 end
 
