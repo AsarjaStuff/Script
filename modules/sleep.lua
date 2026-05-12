@@ -1,11 +1,15 @@
 local Sleep = {}
 
 local function getFurnitureId(instance)
-    for _,v in pairs(instance:GetAttributes()) do
-        local str = tostring(v)
-        if str:match("^f%-") then
-            return str
+    local current = instance
+    while current do
+        for _,v in pairs(current:GetAttributes()) do
+            local str = tostring(v)
+            if str:match("^f%-") then
+                return str
+            end
         end
+        current = current.Parent
     end
     return nil
 end

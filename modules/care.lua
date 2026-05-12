@@ -1,11 +1,15 @@
 local Care = {}
 
 local function getFurnitureId(instance)
-    for _,v in pairs(instance:GetAttributes()) do
-        local str = tostring(v)
-        if str:match("^f%-") then
-            return str
+    local current = instance
+    while current do
+        for _,v in pairs(current:GetAttributes()) do
+            local str = tostring(v)
+            if str:match("^f%-") then
+                return str
+            end
         end
+        current = current.Parent
     end
     return nil
 end
@@ -40,35 +44,31 @@ end
 local function findUseBlockByKeyword(keywords)
     local fallback
     for _,obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "UseBlock" then
-            local furnitureId = getFurnitureId(obj)
-            if furnitureId then
-                local text = getAncestorText(obj)
-                print("DEBUG: UseBlock candidate", obj:GetFullName(), furnitureId, text)
-                for _,keyword in ipairs(keywords) do
-                    if text:find(keyword, 1, true) then
-                        local target = resolveTarget(obj)
-                        if target then
-                            print("DEBUG: matched keyword", keyword, "for", obj:GetFullName())
-                            return furnitureId, target
-                        end
-                    end
-                end
-                if not fallback then
+        local furnitureId = getFurnitureId(obj)
+        if furnitureId then
+            local text = getAncestorText(obj)
+            print("DEBUG: furniture candidate", obj:GetFullName(), furnitureId, text)
+            for _,keyword in ipairs(keywords) do
+                if text:find(keyword, 1, true) then
                     local target = resolveTarget(obj)
                     if target then
-                        fallback = {id = furnitureId, target = target}
+                        print("DEBUG: matched keyword", keyword, "for", obj:GetFullName())
+                        return furnitureId, target
                     end
                 end
-            else
-                print("DEBUG: UseBlock candidate no furnitureId", obj:GetFullName())
+            end
+            if not fallback then
+                local target = resolveTarget(obj)
+                if target then
+                    fallback = {id = furnitureId, target = target}
+                end
             end
         end
     end
     if fallback then
-        print("DEBUG: using fallback UseBlock", fallback.id, fallback.target:GetFullName())
+        print("DEBUG: using fallback furniture", fallback.id, fallback.target:GetFullName())
     else
-        print("DEBUG: no UseBlock fallback found")
+        print("DEBUG: no furniture fallback found")
     end
     return fallback and fallback.id, fallback and fallback.target
 end
