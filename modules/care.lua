@@ -82,7 +82,7 @@ function Care.FindDrink()
 end
 
 function Care.FindShower()
-    return findUseBlockByKeyword({"shower", "bath", "wash", "clean", "hygiene", "spa"})
+    return findUseBlockByKeyword({"shower", "bath", "wash", "clean", "hygiene", "CheapPetBathtub"})
 end
 
 return Care
