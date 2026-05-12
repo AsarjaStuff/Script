@@ -35,7 +35,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     })
 
     --// Create Tab
-    local Tab = Window:CreateTab("Controls")
+    local Tab = Window:CreateTab("Controls", 0)
 
     --// Status Label
     local StatusLabel = Tab:CreateLabel("Status: Ready")
