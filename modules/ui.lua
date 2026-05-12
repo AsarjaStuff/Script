@@ -19,7 +19,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     --// Create Rayfield Window
     local Window = Rayfield:CreateWindow({
-        Name = "🐾 Pet Controller",
+        Name = "Pet Controller",
         Icon = 0,
         LoadingTitle = "Pet Controller",
         LoadingSubtitle = "Loading your pets...",
