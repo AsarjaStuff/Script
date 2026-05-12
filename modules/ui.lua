@@ -99,6 +99,144 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         return nil
     end
 
+    local function childStateEnabled(pet, name)
+        local targetName = name:lower()
+        local child = pet:FindFirstChild(name)
+
+        if not child then
+            for _, v in ipairs(pet:GetChildren()) do
+                if v.Name:lower() == targetName then
+                    child = v
+                    break
+                end
+            end
+        end
+
+        if not child then
+            return false
+        end
+
+        if child:IsA("BoolValue") then
+            return child.Value == true
+        end
+
+        if child:IsA("IntValue") or child:IsA("NumberValue") then
+            return child.Value ~= 0
+        end
+
+        if child:IsA("StringValue") then
+            return child.Value ~= ""
+        end
+
+        return true
+    end
+
+    local function activePerformanceEnabled(pet, name)
+        local active = pet:FindFirstChild("ActivePerformances")
+        if not active then
+            return false
+        end
+
+        for _, perf in ipairs(active:GetChildren()) do
+            local perfName = perf.Name:lower()
+            if perfName == name:lower() or perfName:find(name:lower(), 1, true) then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function petHasState(pet, name)
+        if not pet then
+            return false
+        end
+
+        local attr = pet:GetAttribute(name)
+        if attr == true or attr == 1 or tostring(attr):lower() == "true" then
+            return true
+        end
+
+        if childStateEnabled(pet, name) then
+            return true
+        end
+
+        if activePerformanceEnabled(pet, name) then
+            return true
+        end
+
+        return false
+    end
+
+    local function petHasAnyState(pet, names)
+        for _, name in ipairs(names) do
+            if petHasState(pet, name) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function isDirty(pet)
+        return petHasAnyState(pet, {"Dirty", "Stinky", "NeedsBath", "Bath"})
+    end
+
+    local function isSleepy(pet)
+        return petHasAnyState(pet, {"Sleepy", "Tired", "NeedsSleep", "Sleep"})
+    end
+
+    local function isHungry(pet)
+        return petHasAnyState(pet, {"Hungry", "Starving", "NeedsFood", "Feed"})
+    end
+
+    local function isThirsty(pet)
+        return petHasAnyState(pet, {"Thirsty", "Parched", "NeedsDrink", "Drink"})
+    end
+
+    local function teleportToTarget(cframe)
+        if not cframe then
+            return
+        end
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.CFrame = cframe * CFrame.new(0, 0, -5)
+        end
+    end
+
+    local function performFurnitureActivation(furnitureId, target, partName, actionLabel)
+        if not furnitureId or not target then
+            return false, "No furniture found"
+        end
+
+        local targetCFrame = resolveCFrame(target, partName)
+        if not targetCFrame then
+            return false, "Invalid furniture position"
+        end
+
+        teleportToTarget(targetCFrame)
+        updateStatus("Using " .. actionLabel .. "...")
+
+        local args = {
+            player,
+            furnitureId,
+            partName,
+            {
+                cframe = targetCFrame
+            },
+            selectedPet
+        }
+
+        local ok, err = pcall(function()
+            ActivateFurniture:InvokeServer(unpack(args))
+        end)
+
+        if not ok then
+            return false, err
+        end
+
+        return true
+    end
+
     --// Refresh Pets Button
     Tab:CreateButton({
         Name = "🔄 Refresh Pets",
@@ -424,110 +562,62 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 updateStatus("No pet selected")
                 return
             end
+
             updateStatus("Checking pet needs...")
-            local isSleepy = selectedPet:GetAttribute("Sleepy")
-            local isDirty = selectedPet:GetAttribute("Dirty")
-            
-            if isDirty then
+
+            if isHungry(selectedPet) then
+                updateStatus("Pet is hungry, teleporting to food...")
+                local furnitureId, obj = Care.FindFood()
+                local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "food")
+                if not success then
+                    updateStatus("Feed request failed")
+                    warn("FEED REQUEST ERROR", err)
+                    return
+                end
+                updateStatus(selectedPet.Name .. " is eating")
+                return
+            end
+
+            if isThirsty(selectedPet) then
+                updateStatus("Pet is thirsty, teleporting to drink...")
+                local furnitureId, obj = Care.FindDrink()
+                local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "drink")
+                if not success then
+                    updateStatus("Drink request failed")
+                    warn("DRINK REQUEST ERROR", err)
+                    return
+                end
+                updateStatus(selectedPet.Name .. " is drinking")
+                return
+            end
+
+            if isDirty(selectedPet) then
                 updateStatus("Pet is dirty, teleporting to shower...")
                 local furnitureId, obj = Care.FindShower()
-                if not furnitureId or not obj then
-                    updateStatus("No shower found for autofarm")
-                    return
-                end
-                local showerCFrame = resolveCFrame(obj, "UseBlock")
-                if not showerCFrame then
-                    updateStatus("Invalid shower position")
-                    return
-                end
-                -- Teleport player near shower
-                local playerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                if playerRoot then
-                    playerRoot.CFrame = showerCFrame * CFrame.new(0, 0, -5)
-                end
-                updateStatus("Using shower...")
-                local args = {
-                    player,
-                    furnitureId,
-                    "UseBlock",
-                    {
-                        cframe = showerCFrame
-                    },
-                    selectedPet
-                }
-                local ok, err = pcall(function()
-                    ActivateFurniture:InvokeServer(unpack(args))
-                end)
-                if not ok then
+                local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "shower")
+                if not success then
                     updateStatus("Shower request failed")
                     warn("SHOWER REQUEST ERROR", err)
                     return
                 end
-                -- Apply shower effects
-                local modifierArgs = {
-                    selectedPet,
-                    {
-                        eyes_id = "drowsy_eyes",
-                        current_form = "pomeranian",
-                        effects = {"stinky"}
-                    }
-                }
-                ReplicatePerformanceModifiers:FireServer(unpack(modifierArgs))
-                updateStatus(selectedPet.Name .. " showered")
-            elseif isSleepy then
+                updateStatus(selectedPet.Name .. " is showering")
+                return
+            end
+
+            if isSleepy(selectedPet) then
                 updateStatus("Pet is sleepy, teleporting to bed...")
                 local furnitureId, seat = Sleep.FindBed()
-                if not furnitureId or not seat then
-                    updateStatus("No bed found for autofarm")
-                    return
-                end
-                local sleepCFrame = resolveCFrame(seat, "Seat1")
-                if not sleepCFrame then
-                    updateStatus("Invalid bed position")
-                    return
-                end
-                -- Teleport player near bed
-                local playerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                if playerRoot then
-                    playerRoot.CFrame = sleepCFrame * CFrame.new(0, 0, -5)
-                end
-                updateStatus("Using bed...")
-                local args = {
-                    player,
-                    furnitureId,
-                    "Seat1",
-                    {
-                        cframe = sleepCFrame
-                    },
-                    selectedPet
-                }
-                local ok, err = pcall(function()
-                    ActivateFurniture:InvokeServer(unpack(args))
-                end)
-                if not ok then
+                local success, err = performFurnitureActivation(furnitureId, seat, "Seat1", "bed")
+                if not success then
                     updateStatus("Sleep request failed")
                     warn("SLEEP REQUEST ERROR", err)
                     return
                 end
-                -- Apply sleep effects
-                local modifierArgs = {
-                    selectedPet,
-                    {
-                        current_form = "pomeranian",
-                        animation_priority_override = Enum.AnimationPriority.Action2,
-                        anim_name = "Halloween2025CryptidPomeranianSleep",
-                        eyes_id = "sleepy_eyes",
-                        hold_anim_speed = 0.2,
-                        anim_fade_time = 3,
-                        sitting_cancels_server_anim = false,
-                        effects = {"sleep"}
-                    }
-                }
-                ReplicatePerformanceModifiers:FireServer(unpack(modifierArgs))
-                updateStatus(selectedPet.Name .. " sleeping")
-            else
-                updateStatus("Pet doesn't need anything")
+                updateStatus(selectedPet.Name .. " is sleeping")
+                return
             end
+
+            updateStatus("Pet doesn't need anything")
         end
     })
 
