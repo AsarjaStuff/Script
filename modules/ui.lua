@@ -49,6 +49,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local selectedPet = nil
     local petOptions = {}
 
+    local function updateStatus(text)
+        StatusLabel:Set("Status: " .. text)
+    end
+
     --// Refresh Pets
     local function refreshPets()
         selectedPet = nil
@@ -66,10 +70,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         else
             updateStatus("No pets found")
         end
-    end
-
-    local function updateStatus(text)
-        StatusLabel:Set("Status: " .. text)
     end
 
     local function resolveCFrame(target, expectedName)
