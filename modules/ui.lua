@@ -138,9 +138,17 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 updateStatus("No pet selected")
                 return
             end
+            updateStatus("Sending hold request...")
             print("DEBUG: hold pet", selectedPet.Name, selectedPet:GetFullName())
             local args = {selectedPet}
-            HoldBaby:FireServer(unpack(args))
+            local ok, err = pcall(function()
+                HoldBaby:FireServer(unpack(args))
+            end)
+            if not ok then
+                updateStatus("Hold request failed")
+                warn("HOLD REQUEST ERROR", err)
+                return
+            end
             updateStatus("Holding " .. selectedPet.Name)
         end
     })
@@ -153,8 +161,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 updateStatus("No pet selected")
                 return
             end
+            updateStatus("Sending drop request...")
             local args = {selectedPet}
-            EjectBaby:FireServer(unpack(args))
+            local ok, err = pcall(function()
+                EjectBaby:FireServer(unpack(args))
+            end)
+            if not ok then
+                updateStatus("Drop request failed")
+                warn("DROP REQUEST ERROR", err)
+                return
+            end
             updateStatus("Dropped " .. selectedPet.Name)
         end
     })
@@ -183,6 +199,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 warn("BED CFRAME MISSING")
                 return
             end
+            updateStatus("Using bed...")
             print("USING BED:", furnitureId, seat:GetFullName())
             local args = {
                 player,
@@ -194,7 +211,14 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 selectedPet
             }
             print("SENDING SLEEP REQUEST", furnitureId, seat:GetFullName())
-            ActivateFurniture:InvokeServer(unpack(args))
+            local ok, err = pcall(function()
+                ActivateFurniture:InvokeServer(unpack(args))
+            end)
+            if not ok then
+                updateStatus("Sleep request failed")
+                warn("SLEEP REQUEST ERROR", err)
+                return
+            end
             updateStatus(selectedPet.Name .. " is sleeping")
         end
     })
@@ -223,6 +247,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 warn("FOOD CFRAME MISSING")
                 return
             end
+            updateStatus("Using food...")
             print("USING FOOD:", furnitureId, obj:GetFullName())
             local args = {
                 player,
@@ -234,7 +259,14 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 selectedPet
             }
             print("SENDING EAT REQUEST", furnitureId, obj:GetFullName())
-            ActivateFurniture:InvokeServer(unpack(args))
+            local ok, err = pcall(function()
+                ActivateFurniture:InvokeServer(unpack(args))
+            end)
+            if not ok then
+                updateStatus("Feed request failed")
+                warn("FEED REQUEST ERROR", err)
+                return
+            end
             updateStatus(selectedPet.Name .. " is eating")
         end
     })
@@ -263,6 +295,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 warn("DRINK CFRAME MISSING")
                 return
             end
+            updateStatus("Using drink...")
             print("USING DRINK:", furnitureId, obj:GetFullName())
             local args = {
                 player,
@@ -274,7 +307,14 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 selectedPet
             }
             print("SENDING DRINK REQUEST", furnitureId, obj:GetFullName())
-            ActivateFurniture:InvokeServer(unpack(args))
+            local ok, err = pcall(function()
+                ActivateFurniture:InvokeServer(unpack(args))
+            end)
+            if not ok then
+                updateStatus("Drink request failed")
+                warn("DRINK REQUEST ERROR", err)
+                return
+            end
             updateStatus(selectedPet.Name .. " is drinking")
         end
     })
@@ -303,6 +343,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 warn("SHOWER CFRAME MISSING")
                 return
             end
+            updateStatus("Using shower...")
             print("USING SHOWER:", furnitureId, obj:GetFullName())
             local args = {
                 player,
@@ -314,7 +355,14 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 selectedPet
             }
             print("SENDING SHOWER REQUEST", furnitureId, obj:GetFullName())
-            ActivateFurniture:InvokeServer(unpack(args))
+            local ok, err = pcall(function()
+                ActivateFurniture:InvokeServer(unpack(args))
+            end)
+            if not ok then
+                updateStatus("Shower request failed")
+                warn("SHOWER REQUEST ERROR", err)
+                return
+            end
             updateStatus(selectedPet.Name .. " is showering")
         end
     })
@@ -343,6 +391,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 warn("TOILET CFRAME MISSING")
                 return
             end
+            updateStatus("Using toilet...")
             print("USING TOILET:", furnitureId, obj:GetFullName())
             local args = {
                 player,
@@ -354,7 +403,14 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 selectedPet
             }
             print("SENDING TOILET REQUEST", furnitureId, obj:GetFullName())
-            ActivateFurniture:InvokeServer(unpack(args))
+            local ok, err = pcall(function()
+                ActivateFurniture:InvokeServer(unpack(args))
+            end)
+            if not ok then
+                updateStatus("Toilet request failed")
+                warn("TOILET REQUEST ERROR", err)
+                return
+            end
             updateStatus(selectedPet.Name .. " is using toilet")
         end
     })
