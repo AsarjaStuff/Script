@@ -95,15 +95,23 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
         if #petOptions > 0 then
             updateStatus("Found " .. #petOptions .. " pets")
-            PetDropdown:Refresh(petOptions)
-            PetDropdown:Set({petOptions[1]})
-            -- Auto-select first pet
-            selectedPet = pets[1]
-            updateStatus("Auto-selected: " .. pets[1].Name)
+            if PetDropdown then
+                PetDropdown:Refresh(petOptions)
+                PetDropdown:Set({petOptions[1]})
+                -- Auto-select first pet
+                selectedPet = pets[1]
+                updateStatus("Auto-selected: " .. pets[1].Name)
+            else
+                warn("PetDropdown is nil in refreshPets")
+            end
         else
             updateStatus("No pets found")
-            PetDropdown:Refresh({"No pets available"})
-            PetDropdown:Set({"No pets available"})
+            if PetDropdown then
+                PetDropdown:Refresh({"No pets available"})
+                PetDropdown:Set({"No pets available"})
+            else
+                warn("PetDropdown is nil in refreshPets")
+            end
         end
     end
 
