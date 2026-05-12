@@ -32,13 +32,13 @@ local function resolveTarget(obj)
         return obj
     end
     if obj:IsA("Model") then
-        local direct = obj:FindFirstChild("UseBlock")
+        local direct = obj:FindFirstChild("UseBlock", true)
         if direct and direct:IsA("BasePart") then
             return direct
         end
-        return obj:FindFirstChildOfClass("BasePart")
+        return obj:FindFirstChildOfClass("BasePart", true)
     end
-    return obj:FindFirstChildOfClass("BasePart")
+    return obj:FindFirstChildOfClass("BasePart", true)
 end
 
 local function findUseBlockByKeyword(keywords)
