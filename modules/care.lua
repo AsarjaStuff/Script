@@ -32,59 +32,39 @@ local function resolveTarget(obj)
         return obj
     end
     if obj:IsA("Model") then
-        local direct = obj:FindFirstChild("UseBlock", true)
+        local direct = obj:FindFirstChild("UseBlock")
         if direct and direct:IsA("BasePart") then
             return direct
         end
-        return obj:FindFirstChildOfClass("BasePart", true)
+        return obj:FindFirstChildOfClass("BasePart")
     end
-    return obj:FindFirstChildOfClass("BasePart", true)
+    return obj:FindFirstChildOfClass("BasePart")
 end
 
 local function findUseBlockByKeyword(keywords)
     local fallback
-
-    -- First, prefer actual UseBlock parts.
-    for _,obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name == "UseBlock" then
-            local furnitureId = getFurnitureId(obj)
-            local text = getAncestorText(obj)
-            print("DEBUG: UseBlock candidate", obj:GetFullName(), furnitureId, text)
-            if furnitureId then
-                for _,keyword in ipairs(keywords) do
-                    if text:find(keyword, 1, true) then
-                        print("DEBUG: matched keyword", keyword, "for", obj:GetFullName())
-                        return furnitureId, obj
-                    end
-                end
-                if not fallback then
-                    fallback = {id = furnitureId, target = obj}
-                end
-            end
-        end
-    end
-
-    -- If no direct UseBlock match, fall back to any furniture-bearing object.
     for _,obj in pairs(workspace:GetDescendants()) do
         local furnitureId = getFurnitureId(obj)
         if furnitureId then
-            local target = resolveTarget(obj)
-            if target then
-                local text = getAncestorText(obj)
-                print("DEBUG: furniture fallback candidate", obj:GetFullName(), furnitureId, text)
-                for _,keyword in ipairs(keywords) do
-                    if text:find(keyword, 1, true) then
-                        print("DEBUG: matched fallback keyword", keyword, "for", obj:GetFullName())
+            local text = getAncestorText(obj)
+            print("DEBUG: furniture candidate", obj:GetFullName(), furnitureId, text)
+            for _,keyword in ipairs(keywords) do
+                if text:find(keyword, 1, true) then
+                    local target = resolveTarget(obj)
+                    if target then
+                        print("DEBUG: matched keyword", keyword, "for", obj:GetFullName())
                         return furnitureId, target
                     end
                 end
-                if not fallback then
+            end
+            if not fallback then
+                local target = resolveTarget(obj)
+                if target then
                     fallback = {id = furnitureId, target = target}
                 end
             end
         end
     end
-
     if fallback then
         print("DEBUG: using fallback furniture", fallback.id, fallback.target:GetFullName())
     else
