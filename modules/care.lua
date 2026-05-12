@@ -74,15 +74,15 @@ local function findUseBlockByKeyword(keywords)
 end
 
 function Care.FindFood()
-    return findUseBlockByKeyword({"food", "eat", "kitchen", "meal", "dish", "snack", "feeder", "hungry"})
+    return findUseBlockByKeyword({"food", "PetFoodBowl", "kitchen", "meal", "dish", "snack", "feeder", "hungry"})
 end
 
 function Care.FindDrink()
-    return findUseBlockByKeyword({"drink", "water", "fountain", "tap", "bottle", "hydration", "thirst"})
+    return findUseBlockByKeyword({"PetWaterBowl", "water", "fountain", "tap", "bottle", "hydration", "thirst"})
 end
 
 function Care.FindShower()
-    return findUseBlockByKeyword({"shower", "bath", "wash", "clean", "hygiene", "CheapPetBathtub"})
+    return findUseBlockByKeyword({"shower", "bath", "wash", "shower", "ModernShower", "CheapPetBathtub"})
 end
 
 return Care
