@@ -49,10 +49,37 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     --// Variables
     local selectedPet = nil
     local petOptions = {}
+    local PetDropdown = nil
 
     local function updateStatus(text)
         StatusLabel:Set("Status: " .. text)
     end
+
+    --// Pet Dropdown
+    PetDropdown = Tab:CreateDropdown({
+        Name = "Select Pet",
+        Options = {"No pets available"},
+        CurrentOption = {"No pets available"},
+        MultipleOptions = false,
+        Flag = "PetDropdown",
+        Callback = function(Options)
+            local selectedName = Options[1]
+            if selectedName == "No pets available" then
+                selectedPet = nil
+                updateStatus("No pet selected")
+                return
+            end
+            local pets = Pets.GetPets()
+            for _, pet in ipairs(pets) do
+                if pet.Name == selectedName then
+                    selectedPet = pet
+                    print("DEBUG: pet selected", pet.Name, pet:GetFullName())
+                    updateStatus("Selected: " .. pet.Name)
+                    break
+                end
+            end
+        end
+    })
 
     --// Refresh Pets
     local function refreshPets()
@@ -317,34 +344,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         Name = "❌ Clear Selection",
         Callback = function()
             selectedPet = nil
-            PetDropdown:Set({"No pets available"})
+            if PetDropdown then
+                PetDropdown:Set({"No pets available"})
+            end
             updateStatus("Selection cleared")
-        end
-    })
-
-    --// Pet Dropdown
-    local PetDropdown = Tab:CreateDropdown({
-        Name = "Select Pet",
-        Options = {"No pets available"},
-        CurrentOption = {"No pets available"},
-        MultipleOptions = false,
-        Flag = "PetDropdown",
-        Callback = function(Options)
-            local selectedName = Options[1]
-            if selectedName == "No pets available" then
-                selectedPet = nil
-                updateStatus("No pet selected")
-                return
-            end
-            local pets = Pets.GetPets()
-            for _, pet in ipairs(pets) do
-                if pet.Name == selectedName then
-                    selectedPet = pet
-                    print("DEBUG: pet selected", pet.Name, pet:GetFullName())
-                    updateStatus("Selected: " .. pet.Name)
-                    break
-                end
-            end
         end
     })
 
