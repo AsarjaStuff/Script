@@ -137,10 +137,49 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             return false
         end
 
+        local lowerName = name:lower()
         for _, perf in ipairs(active:GetChildren()) do
             local perfName = perf.Name:lower()
-            if perfName == name:lower() or perfName:find(name:lower(), 1, true) then
+            if perfName == lowerName or perfName:find(lowerName, 1, true) then
                 return true
+            end
+        end
+
+        return false
+    end
+
+    local function hasEffect(pet, name)
+        local lowerName = name:lower()
+        local effects = pet:FindFirstChild("effects") or pet:FindFirstChild("Effects")
+
+        if effects then
+            for _, child in ipairs(effects:GetChildren()) do
+                local childName = child.Name and child.Name:lower() or ""
+                if childName == lowerName then
+                    return true
+                end
+
+                if child:IsA("StringValue") or child:IsA("ObjectValue") or child:IsA("BoolValue") or child:IsA("IntValue") or child:IsA("NumberValue") then
+                    local valueString = tostring(child.Value):lower()
+                    if valueString == lowerName then
+                        return true
+                    end
+                end
+            end
+        end
+
+        local attr = pet:GetAttribute("effects") or pet:GetAttribute("Effects")
+        if attr then
+            if type(attr) == "string" then
+                if attr:lower() == lowerName then
+                    return true
+                end
+            elseif type(attr) == "table" then
+                for _, item in ipairs(attr) do
+                    if tostring(item):lower() == lowerName then
+                        return true
+                    end
+                end
             end
         end
 
@@ -165,6 +204,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             return true
         end
 
+        if hasEffect(pet, name) then
+            return true
+        end
+
         return false
     end
 
@@ -182,7 +225,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isSleepy(pet)
-        return petHasAnyState(pet, {"Sleepy", "Tired", "NeedsSleep", "Sleep"})
+        return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep"})
     end
 
     local function isHungry(pet)
