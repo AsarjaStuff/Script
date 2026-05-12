@@ -188,8 +188,22 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         local lowerName = name:lower()
         for _, perf in ipairs(active:GetChildren()) do
             local perfName = perf.Name:lower()
+            local value
+            if perf:IsA("BoolValue") or perf:IsA("IntValue") or perf:IsA("NumberValue") then
+                value = perf.Value
+            elseif perf:IsA("StringValue") then
+                value = perf.Value
+            elseif perf:IsA("ObjectValue") then
+                value = perf.Value and perf.Value.Name or nil
+            end
+
             if perfName == lowerName or perfName:find(lowerName, 1, true) then
-                return true
+                if value == nil or value == true or tostring(value):lower() == lowerName then
+                    return true
+                end
+                if type(value) == "string" and value:lower() ~= "false" and value:lower() ~= "" then
+                    return true
+                end
             end
         end
 
@@ -279,11 +293,11 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
-        return petHasAnyState(pet, {"Dirty", "Stinky", "NeedsBath", "Bath"})
+        return petHasAnyState(pet, {"Dirty", "dirty", "Stinky", "NeedsBath", "Bath"})
     end
 
     local function isSleepy(pet)
-        return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep"})
+        return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet"})
     end
 
     local function isHungry(pet)
@@ -659,6 +673,19 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 "thirsty=" .. tostring(isThirsty(selectedPet)),
                 "dirty=" .. tostring(isDirty(selectedPet)),
                 "sleepy=" .. tostring(isSleepy(selectedPet)))
+
+            local active = selectedPet:FindFirstChild("ActivePerformances")
+            if active then
+                for _, perf in ipairs(active:GetChildren()) do
+                    print("AUTOFARM PERF:", perf.Name, perf.ClassName, perf.Value)
+                end
+            end
+            local effects = selectedPet:FindFirstChild("effects") or selectedPet:FindFirstChild("Effects")
+            if effects then
+                for _, child in ipairs(effects:GetChildren()) do
+                    print("AUTOFARM EFFECT:", child.Name, child.ClassName, child.Value)
+                end
+            end
 
             if isHungry(selectedPet) then
                 updateStatus("Pet is hungry, teleporting to food...")
