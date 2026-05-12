@@ -16,6 +16,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local HoldBaby = Remotes.HoldBaby
     local EjectBaby = Remotes.EjectBaby
     local ActivateFurniture = Remotes.ActivateFurniture
+    local ReplicatePerformanceModifiers = Remotes.ReplicatePerformanceModifiers
 
     --// Create Rayfield Window
     local Window = Rayfield:CreateWindow({
@@ -412,6 +413,122 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 return
             end
             updateStatus(selectedPet.Name .. " is using toilet")
+        end
+    })
+
+    --// Autofarm
+    Tab:CreateButton({
+        Name = "🤖 Autofarm",
+        Callback = function()
+            if not selectedPet then
+                updateStatus("No pet selected")
+                return
+            end
+            updateStatus("Checking pet needs...")
+            local effects = selectedPet:GetAttribute("Effects") or {}
+            local needsShower = table.find(effects, "stinky")
+            local needsSleep = table.find(effects, "sleep")
+            
+            if needsShower then
+                updateStatus("Pet needs shower, teleporting...")
+                local furnitureId, obj = Care.FindShower()
+                if not furnitureId or not obj then
+                    updateStatus("No shower found for autofarm")
+                    return
+                end
+                local showerCFrame = resolveCFrame(obj, "UseBlock")
+                if not showerCFrame then
+                    updateStatus("Invalid shower position")
+                    return
+                end
+                -- Teleport player near shower
+                local playerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if playerRoot then
+                    playerRoot.CFrame = showerCFrame * CFrame.new(0, 0, -5)
+                end
+                updateStatus("Using shower...")
+                local args = {
+                    player,
+                    furnitureId,
+                    "UseBlock",
+                    {
+                        cframe = showerCFrame
+                    },
+                    selectedPet
+                }
+                local ok, err = pcall(function()
+                    ActivateFurniture:InvokeServer(unpack(args))
+                end)
+                if not ok then
+                    updateStatus("Shower request failed")
+                    warn("SHOWER REQUEST ERROR", err)
+                    return
+                end
+                -- Apply shower effects
+                local modifierArgs = {
+                    selectedPet,
+                    {
+                        eyes_id = "drowsy_eyes",
+                        current_form = "pomeranian",
+                        effects = {"stinky"}
+                    }
+                }
+                ReplicatePerformanceModifiers:FireServer(unpack(modifierArgs))
+                updateStatus(selectedPet.Name .. " showered")
+            elseif needsSleep then
+                updateStatus("Pet needs sleep, teleporting...")
+                local furnitureId, seat = Sleep.FindBed()
+                if not furnitureId or not seat then
+                    updateStatus("No bed found for autofarm")
+                    return
+                end
+                local sleepCFrame = resolveCFrame(seat, "Seat1")
+                if not sleepCFrame then
+                    updateStatus("Invalid bed position")
+                    return
+                end
+                -- Teleport player near bed
+                local playerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if playerRoot then
+                    playerRoot.CFrame = sleepCFrame * CFrame.new(0, 0, -5)
+                end
+                updateStatus("Using bed...")
+                local args = {
+                    player,
+                    furnitureId,
+                    "Seat1",
+                    {
+                        cframe = sleepCFrame
+                    },
+                    selectedPet
+                }
+                local ok, err = pcall(function()
+                    ActivateFurniture:InvokeServer(unpack(args))
+                end)
+                if not ok then
+                    updateStatus("Sleep request failed")
+                    warn("SLEEP REQUEST ERROR", err)
+                    return
+                end
+                -- Apply sleep effects
+                local modifierArgs = {
+                    selectedPet,
+                    {
+                        current_form = "pomeranian",
+                        animation_priority_override = Enum.AnimationPriority.Action2,
+                        anim_name = "Halloween2025CryptidPomeranianSleep",
+                        eyes_id = "sleepy_eyes",
+                        hold_anim_speed = 0.2,
+                        anim_fade_time = 3,
+                        sitting_cancels_server_anim = false,
+                        effects = {"sleep"}
+                    }
+                }
+                ReplicatePerformanceModifiers:FireServer(unpack(modifierArgs))
+                updateStatus(selectedPet.Name .. " sleeping")
+            else
+                updateStatus("Pet doesn't need anything")
+            end
         end
     })
 
