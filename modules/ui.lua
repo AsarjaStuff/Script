@@ -394,24 +394,30 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             warn("SHOWER NOT FOUND")
             return
         end
-        local showerCFrame = resolveCFrame(obj, "UseBlock")
+        local showerTarget = resolveTarget(obj)
+        if not showerTarget then
+            status.Text = "Invalid shower target"
+            warn("SHOWER TARGET MISSING")
+            return
+        end
+        local showerCFrame = resolveCFrame(showerTarget)
         print("DEBUG: resolved shower CFrame", showerCFrame)
         if not showerCFrame then
             status.Text = "Invalid shower position"
             warn("SHOWER CFRAME MISSING")
             return
         end
-        print("USING SHOWER:", furnitureId, obj:GetFullName())
+        print("USING SHOWER:", furnitureId, showerTarget:GetFullName())
         local args = {
             player,
             furnitureId,
-            "UseBlock",
+            showerTarget.Name,
             {
                 cframe = showerCFrame
             },
             selectedPet
         }
-        print("SENDING SHOWER REQUEST", furnitureId, obj:GetFullName())
+        print("SENDING SHOWER REQUEST", furnitureId, showerTarget:GetFullName())
         ActivateFurniture:InvokeServer(unpack(args))
         status.Text = selectedPet.Name.." is showering"
     end)
