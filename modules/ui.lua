@@ -425,12 +425,11 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 return
             end
             updateStatus("Checking pet needs...")
-            local effects = selectedPet:GetAttribute("Effects") or {}
-            local needsShower = table.find(effects, "stinky")
-            local needsSleep = table.find(effects, "sleep")
+            local isSleepy = selectedPet:GetAttribute("Sleepy")
+            local isDirty = selectedPet:GetAttribute("Dirty")
             
-            if needsShower then
-                updateStatus("Pet needs shower, teleporting...")
+            if isDirty then
+                updateStatus("Pet is dirty, teleporting to shower...")
                 local furnitureId, obj = Care.FindShower()
                 if not furnitureId or not obj then
                     updateStatus("No shower found for autofarm")
@@ -475,8 +474,8 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 }
                 ReplicatePerformanceModifiers:FireServer(unpack(modifierArgs))
                 updateStatus(selectedPet.Name .. " showered")
-            elseif needsSleep then
-                updateStatus("Pet needs sleep, teleporting...")
+            elseif isSleepy then
+                updateStatus("Pet is sleepy, teleporting to bed...")
                 local furnitureId, seat = Sleep.FindBed()
                 if not furnitureId or not seat then
                     updateStatus("No bed found for autofarm")
