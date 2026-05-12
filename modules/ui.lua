@@ -68,8 +68,15 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
         if #petOptions > 0 then
             updateStatus("Found " .. #petOptions .. " pets")
+            PetDropdown:Refresh(petOptions)
+            PetDropdown:Set({petOptions[1]})
+            -- Auto-select first pet
+            selectedPet = pets[1]
+            updateStatus("Auto-selected: " .. pets[1].Name)
         else
             updateStatus("No pets found")
+            PetDropdown:Refresh({"No pets available"})
+            PetDropdown:Set({"No pets available"})
         end
     end
 
@@ -305,6 +312,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
     })
 
+    --// Clear Selection Button
+    Tab:CreateButton({
+        Name = "❌ Clear Selection",
+        Callback = function()
+            selectedPet = nil
+            PetDropdown:Set({"No pets available"})
+            updateStatus("Selection cleared")
+        end
+    })
+
     --// Pet Dropdown
     local PetDropdown = Tab:CreateDropdown({
         Name = "Select Pet",
@@ -314,15 +331,18 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         Flag = "PetDropdown",
         Callback = function(Options)
             local selectedName = Options[1]
-            if selectedName ~= "No pets available" then
-                local pets = Pets.GetPets()
-                for _, pet in ipairs(pets) do
-                    if pet.Name == selectedName then
-                        selectedPet = pet
-                        print("DEBUG: pet selected", pet.Name, pet:GetFullName())
-                        updateStatus("Selected: " .. pet.Name)
-                        break
-                    end
+            if selectedName == "No pets available" then
+                selectedPet = nil
+                updateStatus("No pet selected")
+                return
+            end
+            local pets = Pets.GetPets()
+            for _, pet in ipairs(pets) do
+                if pet.Name == selectedName then
+                    selectedPet = pet
+                    print("DEBUG: pet selected", pet.Name, pet:GetFullName())
+                    updateStatus("Selected: " .. pet.Name)
+                    break
                 end
             end
         end
@@ -687,12 +707,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     --// Initial Refresh
     refreshPets()
-    
-    -- Update pet dropdown with available pets
-    if #petOptions > 0 then
-        PetDropdown:Refresh(petOptions)
-        PetDropdown:Set({petOptions[1]})
-    end
 
     --// Remote Debug Logger
     print("=== PET APIS ===")
