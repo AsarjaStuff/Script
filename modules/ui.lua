@@ -125,7 +125,13 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
 
         if child:IsA("StringValue") then
-            return child.Value ~= ""
+            local lowerValue = tostring(child.Value):lower()
+            return lowerValue ~= "" and lowerValue == targetName
+        end
+
+        if child:IsA("ObjectValue") then
+            local lowerValue = tostring(child.Value):lower()
+            return lowerValue == targetName
         end
 
         return true
@@ -194,6 +200,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         local attr = pet:GetAttribute(name)
         if attr == true or attr == 1 or tostring(attr):lower() == "true" then
             return true
+        end
+        if type(attr) == "string" and attr:lower() == name:lower() then
+            return true
+        end
+        if type(attr) == "table" then
+            for _, item in ipairs(attr) do
+                if tostring(item):lower() == name:lower() then
+                    return true
+                end
+            end
         end
 
         if childStateEnabled(pet, name) then
@@ -607,6 +623,11 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             end
 
             updateStatus("Checking pet needs...")
+            print("AUTOFARM STATE:", selectedPet.Name,
+                "hungry=" .. tostring(isHungry(selectedPet)),
+                "thirsty=" .. tostring(isThirsty(selectedPet)),
+                "dirty=" .. tostring(isDirty(selectedPet)),
+                "sleepy=" .. tostring(isSleepy(selectedPet)))
 
             if isHungry(selectedPet) then
                 updateStatus("Pet is hungry, teleporting to food...")
