@@ -4,12 +4,6 @@ local UI = {}
 
 function UI.Init(Pets, Sleep, Care, Remotes)
 
-    local game = game
-    local workspace = workspace
-    local CFrame = CFrame
-    local Enum = Enum
-    local task = task
-
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -24,6 +18,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local ActivateFurniture = Remotes.ActivateFurniture
     local ReplicatePerformanceModifiers = Remotes.ReplicatePerformanceModifiers
     local ReplicateActivePerformances = Remotes.ReplicateActivePerformances
+    local ReplicateActiveReactions = Remotes.ReplicateActiveReactions
 
     --// Create Rayfield Window
     local Window = Rayfield:CreateWindow({
@@ -58,11 +53,72 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local selectedPetName = nil
     local petOptions = {}
     local PetDropdown = nil
-    local performanceHints = {}
+    local petStateCache = setmetatable({}, {__mode = "k"})
 
     local autofarmEnabled = false
     local autofarmToggle = nil
     local autofarmLoop = nil
+
+    local function updatePetState(pet, data)
+        if not pet or type(data) ~= "table" then
+            return
+        end
+        local state = petStateCache[pet]
+        if not state then
+            state = {}
+            petStateCache[pet] = state
+        end
+        for key, value in pairs(data) do
+            state[key] = value
+        end
+    end
+
+    local function getPetState(pet)
+        if not pet then
+            return nil
+        end
+        return petStateCache[pet]
+    end
+
+    local function stateHasAny(pet, keys)
+        local state = getPetState(pet)
+        if not state then
+            return false
+        end
+        for _, key in ipairs(keys) do
+            local normalizedKey = tostring(key):lower()
+            for stateKey, stateValue in pairs(state) do
+                if tostring(stateKey):lower() == normalizedKey and stateValue then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local function stateHasEffect(pet, effectNames)
+        local state = getPetState(pet)
+        if not state then
+            return false
+        end
+        local effects = state.effects
+        if type(effects) == "table" then
+            for _, effect in ipairs(effects) do
+                for _, name in ipairs(effectNames) do
+                    if tostring(effect):lower() == tostring(name):lower() then
+                        return true
+                    end
+                end
+            end
+        elseif type(effects) == "string" then
+            for _, name in ipairs(effectNames) do
+                if tostring(effects):lower() == tostring(name):lower() then
+                    return true
+                end
+            end
+        end
+        return false
+    end
 
     local function updateStatus(text)
         StatusLabel:Set("Status: " .. text)
@@ -99,26 +155,13 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         return nil
     end
 
-    local function hintHasAny(petName, keys)
-        if not petName then
-            return false
-        end
-        local hints = performanceHints[petName]
-        if not hints then
-            return false
-        end
-        for _, key in ipairs(keys) do
-            if hints[key] then
-                return true
-            end
-        end
-        return false
-    end
-
     --// Debug Remote Listeners
     if ReplicatePerformanceModifiers and ReplicatePerformanceModifiers:IsA("RemoteEvent") then
         ReplicatePerformanceModifiers.OnClientEvent:Connect(function(pet, data)
             print("DEBUG REMOTE: ReplicatePerformanceModifiers fired", pet and pet.Name, data)
+            if pet then
+                updatePetState(pet, data)
+            end
             if selectedPet == pet then
                 updateStatus("Remote says modifiers updated")
             end
@@ -127,21 +170,27 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     if ReplicateActivePerformances and ReplicateActivePerformances:IsA("RemoteEvent") then
         ReplicateActivePerformances.OnClientEvent:Connect(function(pet, data)
-            local petName = pet and pet.Name
-            print("DEBUG REMOTE: ReplicateActivePerformances fired", petName, data)
-            if petName then
-                performanceHints[petName] = performanceHints[petName] or {}
-                if type(data) == "table" then
-                    for key, value in pairs(data) do
-                        performanceHints[petName][key] = value
-                    end
-                else
-                    performanceHints[petName].lastPerformanceData = data
-                end
+            print("DEBUG REMOTE: ReplicateActivePerformances fired", pet and pet.Name, data)
+            if pet then
+                updatePetState(pet, data)
             end
             if selectedPet and pet and selectedPet == pet then
                 if type(data) == "table" and (data.Dirty or data.Transform or data.FocusPet) then
                     updateStatus("Remote says pet has active dirty/transform state")
+                end
+            end
+        end)
+    end
+
+    if ReplicateActiveReactions and ReplicateActiveReactions:IsA("RemoteEvent") then
+        ReplicateActiveReactions.OnClientEvent:Connect(function(pet, data)
+            print("DEBUG REMOTE: ReplicateActiveReactions fired", pet and pet.Name, data)
+            if pet then
+                updatePetState(pet, data)
+            end
+            if selectedPet and pet and selectedPet == pet then
+                if type(data) == "table" and (data.Dirty or data.Transform or data.FocusPet) then
+                    updateStatus("Remote says pet has active reaction dirty/transform state")
                 end
             end
         end)
@@ -420,25 +469,39 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
-        if hintHasAny(pet and pet.Name, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"}) then
+        if stateHasAny(pet, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"}) then
+            return true
+        end
+        if stateHasEffect(pet, {"stinky", "dirty"}) then
             return true
         end
         return petHasAnyState(pet, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"})
     end
 
     local function isSleepy(pet)
-        if hintHasAny(pet and pet.Name, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes", "EnergyLow", "Sleepiness", "Resting"}) then
+        if stateHasAny(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes", "EnergyLow", "Sleepiness", "Resting"}) then
             return true
         end
         return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes"})
     end
 
-    local function isSleeping(pet)
-        return petHasAnyState(pet, {"sleeping", "Sleeping", "Asleep", "asleep", "Sleep", "FallAsleep"})
+    local function isHungry(pet)
+        if stateHasAny(pet, {"Hungry", "Starving", "NeedsFood", "Feed"}) then
+            return true
+        end
+        return petHasAnyState(pet, {"Hungry", "Starving", "NeedsFood", "Feed"})
     end
 
-    local function isHungry(pet)
-        return petHasAnyState(pet, {"Hungry", "Starving", "NeedsFood", "Feed"})
+    local function getNeedsState(pet)
+        return {
+            dirty = isDirty(pet),
+            sleepy = isSleepy(pet),
+            hungry = isHungry(pet)
+        }
+    end
+
+    local function isSleeping(pet)
+        return petHasAnyState(pet, {"sleeping", "Sleeping", "Asleep", "asleep", "Sleep", "FallAsleep"})
     end
 
     local function isThirsty(pet)
@@ -483,6 +546,13 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 if child:IsA("BoolValue") or child:IsA("IntValue") or child:IsA("NumberValue") or child:IsA("StringValue") or child:IsA("ObjectValue") then
                     print("DEBUG EFFECT", child:GetFullName(), child.ClassName, child.Value)
                 end
+            end
+        end
+
+        local state = getPetState(pet)
+        if state then
+            for key, value in pairs(state) do
+                print("DEBUG CACHE", key, value)
             end
         end
     end
@@ -846,11 +916,12 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
         selectedPet = pet
         updateStatus("Checking pet needs...")
+        local needs = getNeedsState(selectedPet)
         print("AUTOFARM STATE:", selectedPet.Name,
-            "hungry=" .. tostring(isHungry(selectedPet)),
+            "hungry=" .. tostring(needs.hungry),
             "thirsty=" .. tostring(isThirsty(selectedPet)),
-            "dirty=" .. tostring(isDirty(selectedPet)),
-            "sleepy=" .. tostring(isSleepy(selectedPet)),
+            "dirty=" .. tostring(needs.dirty),
+            "sleepy=" .. tostring(needs.sleepy),
             "sleeping=" .. tostring(isSleeping(selectedPet)))
 
         local active = selectedPet:FindFirstChild("ActivePerformances")

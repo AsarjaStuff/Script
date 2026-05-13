@@ -1,4 +1,3 @@
-local workspace = workspace
 local Pets = {}
 
 function Pets.GetPets()
