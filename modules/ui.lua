@@ -226,6 +226,40 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
     })
 
+    local function startPetScanner()
+        local lastDump = ""
+
+        task.spawn(function()
+            while true do
+                task.wait(1)
+                local pet = selectedPet
+                if pet then
+                    local current = {}
+                    for _, v in ipairs(pet:GetDescendants()) do
+                        local success, value = pcall(function()
+                            return v.Value
+                        end)
+                        if success then
+                            table.insert(current, v:GetFullName() .. " = " .. tostring(value))
+                        end
+                    end
+                    table.sort(current)
+                    local dump = table.concat(current, "\n")
+                    if dump ~= lastDump then
+                        lastDump = dump
+                        print("=== PET STATE CHANGED ===")
+                        print(dump)
+                        if setclipboard then
+                            pcall(setclipboard, dump)
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
+    startPetScanner()
+
     --// Refresh Pets
     local function refreshPets()
         selectedPet = nil
@@ -472,23 +506,31 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
-        local state = getPetState(pet)
-        if not state then
+        if not pet then
             return false
         end
 
-        if state.TransitionDirty then
-            return true
+        for _, attrValue in pairs(pet:GetAttributes()) do
+            local text = tostring(attrValue):lower()
+            if text:find("dirty") or text:find("stinky") then
+                return true
+            end
         end
-        if state.DirtyAilmentReaction then
-            return true
+
+        for _, v in ipairs(pet:GetDescendants()) do
+            local name = v.Name:lower()
+            if name:find("dirty") or name:find("stinky") then
+                return true
+            end
+
+            if v:IsA("StringValue") then
+                local val = tostring(v.Value):lower()
+                if val:find("dirty") or val:find("stinky") then
+                    return true
+                end
+            end
         end
-        if stateHasAny(pet, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"}) then
-            return true
-        end
-        if stateHasEffect(pet, {"stinky", "dirty"}) then
-            return true
-        end
+
         return false
     end
 
