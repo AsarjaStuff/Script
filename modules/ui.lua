@@ -17,6 +17,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local EjectBaby = Remotes.EjectBaby
     local ActivateFurniture = Remotes.ActivateFurniture
     local ReplicatePerformanceModifiers = Remotes.ReplicatePerformanceModifiers
+    local ReplicateActivePerformances = Remotes.ReplicateActivePerformances
 
     --// Create Rayfield Window
     local Window = Rayfield:CreateWindow({
@@ -57,6 +58,29 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     local function updateStatus(text)
         StatusLabel:Set("Status: " .. text)
+    end
+
+    --// Debug Remote Listeners
+    if ReplicatePerformanceModifiers and ReplicatePerformanceModifiers:IsA("RemoteEvent") then
+        ReplicatePerformanceModifiers.OnClientEvent:Connect(function(pet, data)
+            print("DEBUG REMOTE: ReplicatePerformanceModifiers fired", pet and pet.Name, data)
+            if selectedPet == pet then
+                updateStatus("Remote says modifiers updated")
+            end
+        end)
+    end
+
+    if ReplicateActivePerformances and ReplicateActivePerformances:IsA("RemoteEvent") then
+        ReplicateActivePerformances.OnClientEvent:Connect(function(pet, data)
+            print("DEBUG REMOTE: ReplicateActivePerformances fired", pet and pet.Name, data)
+            if selectedPet == pet then
+                if type(data) == "table" then
+                    if data.Dirty or data.Transform or data.FocusPet then
+                        updateStatus("Remote says pet has active dirty/transform state")
+                    end
+                end
+            end
+        end)
     end
 
     --// Pet Dropdown
@@ -325,11 +349,11 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
-        return petHasAnyState(pet, {"Dirty", "dirty", "Stinky", "NeedsBath", "Bath"})
+        return petHasAnyState(pet, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"})
     end
 
     local function isSleepy(pet)
-        return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet"})
+        return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes"})
     end
 
     local function isSleeping(pet)
