@@ -350,7 +350,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
 
         print("DEBUG PET STATE for", pet.Name)
-        local names = {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "Sleeping", "Asleep"}
+        local names = {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "Sleeping", "Asleep", "Dirty", "dirty", "Stinky", "stinky", "NeedsBath", "Bath", "Transform"}
         for _, name in ipairs(names) do
             local attr = pet:GetAttribute(name)
             if attr ~= nil then
@@ -406,6 +406,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             return false, "Invalid furniture position"
         end
 
+        print("DEBUG ACTION", actionLabel, "furnitureId=", furnitureId, "target=", target:GetFullName())
         teleportToTarget(targetCFrame)
         updateStatus("Using " .. actionLabel .. "...")
 
@@ -792,10 +793,13 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
 
         if isDirty(selectedPet) then
+            print("DEBUG AUTOFARM: dirty state detected for", selectedPet.Name)
             updateStatus("Pet is dirty, teleporting to shower...")
             local furnitureId, obj = Care.FindShower()
+            print("DEBUG AUTOFARM: Care.FindShower returned", furnitureId, obj and obj:GetFullName() or nil)
             local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "shower")
             if not success then
+                warn("AUTOFARM SHOWER ERROR", err)
                 return false, err
             end
             updateStatus(selectedPet.Name .. " is showering")
