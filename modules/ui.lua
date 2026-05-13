@@ -4,6 +4,12 @@ local UI = {}
 
 function UI.Init(Pets, Sleep, Care, Remotes)
 
+    local game = game
+    local workspace = workspace
+    local CFrame = CFrame
+    local Enum = Enum
+    local task = task
+
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -49,8 +55,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     --// Variables
     local selectedPet = nil
+    local selectedPetName = nil
     local petOptions = {}
     local PetDropdown = nil
+    local performanceHints = {}
 
     local autofarmEnabled = false
     local autofarmToggle = nil
@@ -58,6 +66,53 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     local function updateStatus(text)
         StatusLabel:Set("Status: " .. text)
+    end
+
+    local function tableContains(tbl, value)
+        if type(tbl) ~= "table" then
+            return false
+        end
+        for _, v in ipairs(tbl) do
+            if v == value then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function resolveSelectedPet()
+        if selectedPet and selectedPet.Parent and selectedPet:IsDescendantOf(workspace) then
+            return selectedPet
+        end
+
+        if not selectedPetName then
+            return nil
+        end
+
+        local pet = Pets.FindPetByName(selectedPetName)
+        if pet then
+            selectedPet = pet
+            return pet
+        end
+
+        selectedPet = nil
+        return nil
+    end
+
+    local function hintHasAny(petName, keys)
+        if not petName then
+            return false
+        end
+        local hints = performanceHints[petName]
+        if not hints then
+            return false
+        end
+        for _, key in ipairs(keys) do
+            if hints[key] then
+                return true
+            end
+        end
+        return false
     end
 
     --// Debug Remote Listeners
@@ -72,12 +127,21 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     if ReplicateActivePerformances and ReplicateActivePerformances:IsA("RemoteEvent") then
         ReplicateActivePerformances.OnClientEvent:Connect(function(pet, data)
-            print("DEBUG REMOTE: ReplicateActivePerformances fired", pet and pet.Name, data)
-            if selectedPet == pet then
+            local petName = pet and pet.Name
+            print("DEBUG REMOTE: ReplicateActivePerformances fired", petName, data)
+            if petName then
+                performanceHints[petName] = performanceHints[petName] or {}
                 if type(data) == "table" then
-                    if data.Dirty or data.Transform or data.FocusPet then
-                        updateStatus("Remote says pet has active dirty/transform state")
+                    for key, value in pairs(data) do
+                        performanceHints[petName][key] = value
                     end
+                else
+                    performanceHints[petName].lastPerformanceData = data
+                end
+            end
+            if selectedPet and pet and selectedPet == pet then
+                if type(data) == "table" and (data.Dirty or data.Transform or data.FocusPet) then
+                    updateStatus("Remote says pet has active dirty/transform state")
                 end
             end
         end)
@@ -94,17 +158,18 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             local selectedName = Options[1]
             if selectedName == "No pets available" then
                 selectedPet = nil
+                selectedPetName = nil
                 updateStatus("No pet selected")
                 return
             end
-            local pets = Pets.GetPets()
-            for _, pet in ipairs(pets) do
-                if pet.Name == selectedName then
-                    selectedPet = pet
-                    print("DEBUG: pet selected", pet.Name, pet:GetFullName())
-                    updateStatus("Selected: " .. pet.Name)
-                    break
-                end
+            selectedPetName = selectedName
+            selectedPet = Pets.FindPetByName(selectedName)
+            if selectedPet then
+                print("DEBUG: pet selected", selectedPet.Name, selectedPet:GetFullName())
+                updateStatus("Selected: " .. selectedPet.Name)
+            else
+                warn("DEBUG: selected pet by name not found", selectedName)
+                updateStatus("Selected pet not found live")
             end
         end
     })
@@ -125,10 +190,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             updateStatus("Found " .. #petOptions .. " pets")
             if PetDropdown then
                 PetDropdown:Refresh(petOptions)
-                PetDropdown:Set({petOptions[1]})
-                -- Auto-select first pet
-                selectedPet = pets[1]
-                updateStatus("Auto-selected: " .. pets[1].Name)
+                if selectedPetName and tableContains(petOptions, selectedPetName) then
+                    PetDropdown:Set({selectedPetName})
+                    selectedPet = Pets.FindPetByName(selectedPetName)
+                    updateStatus("Re-selected: " .. selectedPetName)
+                else
+                    PetDropdown:Set({petOptions[1]})
+                    selectedPetName = petOptions[1]
+                    selectedPet = pets[1]
+                    updateStatus("Auto-selected: " .. pets[1].Name)
+                end
             else
                 warn("PetDropdown is nil in refreshPets")
             end
@@ -349,10 +420,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
+        if hintHasAny(pet and pet.Name, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"}) then
+            return true
+        end
         return petHasAnyState(pet, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"})
     end
 
     local function isSleepy(pet)
+        if hintHasAny(pet and pet.Name, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes", "EnergyLow", "Sleepiness", "Resting"}) then
+            return true
+        end
         return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes"})
     end
 
@@ -762,10 +839,12 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     })
 
     local function runAutofarmOnce()
-        if not selectedPet then
-            return false, "No pet selected"
+        local pet = resolveSelectedPet()
+        if not pet then
+            return false, "No pet selected or pet instance stale"
         end
 
+        selectedPet = pet
         updateStatus("Checking pet needs...")
         print("AUTOFARM STATE:", selectedPet.Name,
             "hungry=" .. tostring(isHungry(selectedPet)),
