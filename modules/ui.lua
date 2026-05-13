@@ -164,6 +164,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             end
             if selectedPet == pet then
                 updateStatus("Remote says modifiers updated")
+                attemptAutoShower(pet, "ReplicatePerformanceModifiers")
             end
         end)
     end
@@ -178,6 +179,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 if type(data) == "table" and (data.Dirty or data.Transform or data.FocusPet) then
                     updateStatus("Remote says pet has active dirty/transform state")
                 end
+                attemptAutoShower(pet, "ReplicateActivePerformances")
             end
         end)
     end
@@ -192,6 +194,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 if type(data) == "table" and (data.Dirty or data.Transform or data.FocusPet) then
                     updateStatus("Remote says pet has active reaction dirty/transform state")
                 end
+                attemptAutoShower(pet, "ReplicateActiveReactions")
             end
         end)
     end
@@ -600,6 +603,69 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
 
         return true
+    end
+
+    local autoShowerThrottle = {}
+    local autoShowerDisabled = false
+
+    local function canAutoShowerForPet(pet)
+        if not pet then
+            return false
+        end
+        if not autofarmEnabled then
+            return false
+        end
+        if autoShowerDisabled then
+            return false
+        end
+        local last = autoShowerThrottle[pet]
+        if last and (time() - last) < 5 then
+            return false
+        end
+        return true
+    end
+
+    local function markAutoShower(pet)
+        if pet then
+            autoShowerThrottle[pet] = time()
+        end
+    end
+
+    local function attemptAutoShower(pet, source)
+        local currentPet = resolveSelectedPet()
+        if not currentPet or currentPet ~= pet then
+            return
+        end
+        if not canAutoShowerForPet(pet) then
+            return
+        end
+        if isSleeping(pet) then
+            return
+        end
+        if not isDirty(pet) then
+            return
+        end
+
+        local furnitureId, obj = Care.FindShower()
+        if not furnitureId or not obj then
+            updateStatus("Auto-shower: no shower found")
+            warn("AUTO SHOWER: no shower found")
+            return
+        end
+
+        updateStatus("Auto-shower triggered by " .. source)
+        print("DEBUG AUTO-SHOWER", pet.Name, "source=", source)
+        markAutoShower(pet)
+
+        task.spawn(function()
+            local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "shower")
+            if not success then
+                warn("AUTO SHOWER ERROR", err)
+                updateStatus("Auto shower failed")
+                return
+            end
+            updateStatus(pet.Name .. " is showering")
+        end)
     end
 
     --// Refresh Pets Button
