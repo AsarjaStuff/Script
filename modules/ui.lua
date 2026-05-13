@@ -20,6 +20,55 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local ReplicateActivePerformances = Remotes.ReplicateActivePerformances
     local ReplicateActiveReactions = Remotes.ReplicateActiveReactions
 
+    local dirtyPetState = setmetatable({}, {__mode = "k"})
+
+    local function markPetDirty(pet, value)
+        if pet and pet:IsA("Model") then
+            dirtyPetState[pet] = value
+        end
+    end
+
+    local successHook, hookErr = pcall(function()
+        local mt = getrawmetatable(game)
+        local oldNamecall = mt.__namecall
+
+        setreadonly(mt, false)
+        mt.__namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            if method == "FireServer" and (self == ReplicatePerformanceModifiers or tostring(self) == "PetAPI/ReplicatePerformanceModifiers") then
+                local args = {...}
+                local pet = args[1]
+                local data = args[2]
+
+                if type(data) == "table" then
+                    if data.TransitionDirty or data.DirtyAilmentReaction then
+                        markPetDirty(pet, true)
+                    end
+
+                    if type(data.effects) == "table" then
+                        local found = false
+                        for _, effect in ipairs(data.effects) do
+                            if tostring(effect):lower() == "stinky" then
+                                found = true
+                                break
+                            end
+                        end
+                        if found then
+                            markPetDirty(pet, true)
+                        end
+                    end
+                end
+            end
+
+            return oldNamecall(self, ...)
+        end)
+        setreadonly(mt, true)
+    end)
+
+    if not successHook then
+        warn("Dirty detection hook failed:", hookErr)
+    end
+
     --// Create Rayfield Window
     local Window = Rayfield:CreateWindow({
         Name = "Pet Controller",
@@ -225,40 +274,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             end
         end
     })
-
-    local function startPetScanner()
-        local lastDump = ""
-
-        task.spawn(function()
-            while true do
-                task.wait(1)
-                local pet = selectedPet
-                if pet then
-                    local current = {}
-                    for _, v in ipairs(pet:GetDescendants()) do
-                        local success, value = pcall(function()
-                            return v.Value
-                        end)
-                        if success then
-                            table.insert(current, v:GetFullName() .. " = " .. tostring(value))
-                        end
-                    end
-                    table.sort(current)
-                    local dump = table.concat(current, "\n")
-                    if dump ~= lastDump then
-                        lastDump = dump
-                        print("=== PET STATE CHANGED ===")
-                        print(dump)
-                        if setclipboard then
-                            pcall(setclipboard, dump)
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
-    startPetScanner()
 
     --// Refresh Pets
     local function refreshPets()
@@ -506,32 +521,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
-        if not pet then
-            return false
-        end
-
-        for _, attrValue in pairs(pet:GetAttributes()) do
-            local text = tostring(attrValue):lower()
-            if text:find("dirty") or text:find("stinky") then
-                return true
-            end
-        end
-
-        for _, v in ipairs(pet:GetDescendants()) do
-            local name = v.Name:lower()
-            if name:find("dirty") or name:find("stinky") then
-                return true
-            end
-
-            if v:IsA("StringValue") then
-                local val = tostring(v.Value):lower()
-                if val:find("dirty") or val:find("stinky") then
-                    return true
-                end
-            end
-        end
-
-        return false
+        return pet and dirtyPetState[pet] == true
     end
 
     local function isSleepy(pet)
