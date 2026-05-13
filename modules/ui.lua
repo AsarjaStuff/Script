@@ -51,6 +51,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local petOptions = {}
     local PetDropdown = nil
 
+    local autofarmEnabled = false
+    local autofarmToggle = nil
+    local autofarmLoop = nil
+
     local function updateStatus(text)
         StatusLabel:Set("Status: " .. text)
     end
@@ -298,6 +302,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     local function isSleepy(pet)
         return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet"})
+    end
+
+    local function isSleeping(pet)
+        return petHasAnyState(pet, {"sleeping", "Sleeping", "Asleep", "asleep", "Sleep", "FallAsleep"})
     end
 
     local function isHungry(pet)
@@ -658,88 +666,134 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
     })
 
-    --// Autofarm
+    local function runAutofarmOnce()
+        if not selectedPet then
+            return false, "No pet selected"
+        end
+
+        updateStatus("Checking pet needs...")
+        print("AUTOFARM STATE:", selectedPet.Name,
+            "hungry=" .. tostring(isHungry(selectedPet)),
+            "thirsty=" .. tostring(isThirsty(selectedPet)),
+            "dirty=" .. tostring(isDirty(selectedPet)),
+            "sleepy=" .. tostring(isSleepy(selectedPet)),
+            "sleeping=" .. tostring(isSleeping(selectedPet)))
+
+        local active = selectedPet:FindFirstChild("ActivePerformances")
+        if active then
+            for _, perf in ipairs(active:GetChildren()) do
+                print("AUTOFARM PERF:", perf.Name, perf.ClassName, perf.Value)
+            end
+        end
+        local effects = selectedPet:FindFirstChild("effects") or selectedPet:FindFirstChild("Effects")
+        if effects then
+            for _, child in ipairs(effects:GetChildren()) do
+                print("AUTOFARM EFFECT:", child.Name, child.ClassName, child.Value)
+            end
+        end
+
+        if isSleeping(selectedPet) then
+            updateStatus(selectedPet.Name .. " is already sleeping")
+            return true
+        end
+
+        if isHungry(selectedPet) then
+            updateStatus("Pet is hungry, teleporting to food...")
+            local furnitureId, obj = Care.FindFood()
+            local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "food")
+            if not success then
+                return false, err
+            end
+            updateStatus(selectedPet.Name .. " is eating")
+            return true
+        end
+
+        if isThirsty(selectedPet) then
+            updateStatus("Pet is thirsty, teleporting to drink...")
+            local furnitureId, obj = Care.FindDrink()
+            local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "drink")
+            if not success then
+                return false, err
+            end
+            updateStatus(selectedPet.Name .. " is drinking")
+            return true
+        end
+
+        if isDirty(selectedPet) then
+            updateStatus("Pet is dirty, teleporting to shower...")
+            local furnitureId, obj = Care.FindShower()
+            local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "shower")
+            if not success then
+                return false, err
+            end
+            updateStatus(selectedPet.Name .. " is showering")
+            return true
+        end
+
+        if isSleepy(selectedPet) then
+            updateStatus("Pet is sleepy, teleporting to bed...")
+            local furnitureId, seat = Sleep.FindBed()
+            local success, err = performFurnitureActivation(furnitureId, seat, "Seat1", "bed")
+            if not success then
+                return false, err
+            end
+            updateStatus(selectedPet.Name .. " is sleeping")
+            return true
+        end
+
+        updateStatus("Pet doesn't need anything")
+        return true
+    end
+
+    local function autofarmLoopFunction()
+        while autofarmEnabled do
+            if selectedPet then
+                local ok, err = pcall(runAutofarmOnce)
+                if not ok then
+                    warn("AUTOFARM ERROR", err)
+                    updateStatus("Autofarm error")
+                end
+            else
+                updateStatus("Autofarm enabled but no pet selected")
+            end
+            task.wait(4)
+        end
+        autofarmLoop = nil
+    end
+
+    local function setAutofarmEnabled(enabled)
+        autofarmEnabled = enabled
+        if autofarmEnabled then
+            updateStatus("Autofarm enabled")
+            if not autofarmLoop then
+                autofarmLoop = task.spawn(autofarmLoopFunction)
+            end
+        else
+            updateStatus("Autofarm disabled")
+        end
+    end
+
+    --// Autofarm Toggle
+    autofarmToggle = Tab:CreateToggle({
+        Name = "🤖 Autofarm Enabled",
+        CurrentValue = false,
+        Flag = "AutoFarmToggle",
+        Callback = function(value)
+            setAutofarmEnabled(value)
+        end
+    })
+
+    --// Autofarm Run Once Button
     Tab:CreateButton({
-        Name = "🤖 Autofarm",
+        Name = "🤖 Run Autofarm",
         Callback = function()
-            if not selectedPet then
-                updateStatus("No pet selected")
-                return
-            end
-
-            updateStatus("Checking pet needs...")
-            print("AUTOFARM STATE:", selectedPet.Name,
-                "hungry=" .. tostring(isHungry(selectedPet)),
-                "thirsty=" .. tostring(isThirsty(selectedPet)),
-                "dirty=" .. tostring(isDirty(selectedPet)),
-                "sleepy=" .. tostring(isSleepy(selectedPet)))
-
-            local active = selectedPet:FindFirstChild("ActivePerformances")
-            if active then
-                for _, perf in ipairs(active:GetChildren()) do
-                    print("AUTOFARM PERF:", perf.Name, perf.ClassName, perf.Value)
+            local ok, err = runAutofarmOnce()
+            if not ok then
+                if err then
+                    updateStatus(err)
+                    warn("AUTOFARM RUN ERROR", err)
                 end
             end
-            local effects = selectedPet:FindFirstChild("effects") or selectedPet:FindFirstChild("Effects")
-            if effects then
-                for _, child in ipairs(effects:GetChildren()) do
-                    print("AUTOFARM EFFECT:", child.Name, child.ClassName, child.Value)
-                end
-            end
-
-            if isHungry(selectedPet) then
-                updateStatus("Pet is hungry, teleporting to food...")
-                local furnitureId, obj = Care.FindFood()
-                local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "food")
-                if not success then
-                    updateStatus("Feed request failed")
-                    warn("FEED REQUEST ERROR", err)
-                    return
-                end
-                updateStatus(selectedPet.Name .. " is eating")
-                return
-            end
-
-            if isThirsty(selectedPet) then
-                updateStatus("Pet is thirsty, teleporting to drink...")
-                local furnitureId, obj = Care.FindDrink()
-                local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "drink")
-                if not success then
-                    updateStatus("Drink request failed")
-                    warn("DRINK REQUEST ERROR", err)
-                    return
-                end
-                updateStatus(selectedPet.Name .. " is drinking")
-                return
-            end
-
-            if isDirty(selectedPet) then
-                updateStatus("Pet is dirty, teleporting to shower...")
-                local furnitureId, obj = Care.FindShower()
-                local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "shower")
-                if not success then
-                    updateStatus("Shower request failed")
-                    warn("SHOWER REQUEST ERROR", err)
-                    return
-                end
-                updateStatus(selectedPet.Name .. " is showering")
-                return
-            end
-
-            if isSleepy(selectedPet) then
-                updateStatus("Pet is sleepy, teleporting to bed...")
-                local furnitureId, seat = Sleep.FindBed()
-                local success, err = performFurnitureActivation(furnitureId, seat, "Seat1", "bed")
-                if not success then
-                    updateStatus("Sleep request failed")
-                    warn("SLEEP REQUEST ERROR", err)
-                    return
-                end
-                updateStatus(selectedPet.Name .. " is sleeping")
-                return
-            end
-
-            updateStatus("Pet doesn't need anything")
         end
     })
 
