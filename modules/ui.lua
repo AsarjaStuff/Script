@@ -53,7 +53,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local selectedPetName = nil
     local petOptions = {}
     local PetDropdown = nil
-    local petStateCache = setmetatable({}, {__mode = "k"})
+    local PetState = setmetatable({}, {__mode = "k"})
 
     local autofarmEnabled = false
     local autofarmToggle = nil
@@ -63,10 +63,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         if not pet or type(data) ~= "table" then
             return
         end
-        local state = petStateCache[pet]
+        local state = PetState[pet]
         if not state then
             state = {}
-            petStateCache[pet] = state
+            PetState[pet] = state
         end
         for key, value in pairs(data) do
             state[key] = value
@@ -77,7 +77,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         if not pet then
             return nil
         end
-        return petStateCache[pet]
+        return PetState[pet]
     end
 
     local function stateHasAny(pet, keys)
@@ -472,27 +472,54 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
+        local state = getPetState(pet)
+        if not state then
+            return false
+        end
+
+        if state.TransitionDirty then
+            return true
+        end
+        if state.DirtyAilmentReaction then
+            return true
+        end
         if stateHasAny(pet, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"}) then
             return true
         end
         if stateHasEffect(pet, {"stinky", "dirty"}) then
             return true
         end
-        return petHasAnyState(pet, {"Dirty", "dirty", "Stinky", "stinky", "Transform", "NeedsBath", "Bath"})
+        return false
     end
 
     local function isSleepy(pet)
+        local state = getPetState(pet)
+        if not state then
+            return false
+        end
+
         if stateHasAny(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes", "EnergyLow", "Sleepiness", "Resting"}) then
             return true
         end
-        return petHasAnyState(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes"})
+        if stateHasEffect(pet, {"drowsy_eyes", "sleepy_eyes", "emit_sweatdrop", "blushing", "tired", "sleepy"}) then
+            return true
+        end
+        return false
     end
 
     local function isHungry(pet)
+        local state = getPetState(pet)
+        if not state then
+            return false
+        end
+
         if stateHasAny(pet, {"Hungry", "Starving", "NeedsFood", "Feed"}) then
             return true
         end
-        return petHasAnyState(pet, {"Hungry", "Starving", "NeedsFood", "Feed"})
+        if stateHasEffect(pet, {"hungry", "starving", "feed"}) then
+            return true
+        end
+        return false
     end
 
     local function getNeedsState(pet)
@@ -504,11 +531,20 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isSleeping(pet)
-        return petHasAnyState(pet, {"sleeping", "Sleeping", "Asleep", "asleep", "Sleep", "FallAsleep"})
+        if stateHasAny(pet, {"sleeping", "Sleeping", "Asleep", "asleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop"}) then
+            return true
+        end
+        return false
     end
 
     local function isThirsty(pet)
-        return petHasAnyState(pet, {"Thirsty", "Parched", "NeedsDrink", "Drink"})
+        if stateHasAny(pet, {"Thirsty", "Parched", "NeedsDrink", "Drink", "Thirst"}) then
+            return true
+        end
+        if stateHasEffect(pet, {"thirsty"}) then
+            return true
+        end
+        return false
     end
 
     local function debugPetState(pet)
@@ -517,6 +553,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         end
 
         print("DEBUG PET STATE for", pet.Name)
+        local state = getPetState(pet)
+        if state then
+            print("DEBUG CACHED STATE:")
+            for key, value in pairs(state) do
+                print("DEBUG STATE", key, value)
+            end
+        else
+            print("DEBUG CACHED STATE: none")
+        end
+
         local names = {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "Sleeping", "Asleep", "Dirty", "dirty", "Stinky", "stinky", "NeedsBath", "Bath", "Transform"}
         for _, name in ipairs(names) do
             local attr = pet:GetAttribute(name)
