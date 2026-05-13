@@ -183,6 +183,30 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         return true
     end
 
+    local function descendantStateEnabled(pet, name)
+        local targetName = name:lower()
+        for _, descendant in ipairs(pet:GetDescendants()) do
+            if descendant.Name:lower() == targetName then
+                if descendant:IsA("BoolValue") then
+                    return descendant.Value == true
+                end
+                if descendant:IsA("IntValue") or descendant:IsA("NumberValue") then
+                    return descendant.Value ~= 0
+                end
+                if descendant:IsA("StringValue") then
+                    local lowerValue = tostring(descendant.Value):lower()
+                    return lowerValue ~= "" and lowerValue == targetName
+                end
+                if descendant:IsA("ObjectValue") then
+                    local lowerValue = tostring(descendant.Value):lower()
+                    return lowerValue == targetName
+                end
+                return true
+            end
+        end
+        return false
+    end
+
     local function activePerformanceEnabled(pet, name)
         local active = pet:FindFirstChild("ActivePerformances")
         if not active then
@@ -276,6 +300,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             return true
         end
 
+        if descendantStateEnabled(pet, name) then
+            return true
+        end
+
         if activePerformanceEnabled(pet, name) then
             return true
         end
@@ -314,6 +342,48 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     local function isThirsty(pet)
         return petHasAnyState(pet, {"Thirsty", "Parched", "NeedsDrink", "Drink"})
+    end
+
+    local function debugPetState(pet)
+        if not pet then
+            return
+        end
+
+        print("DEBUG PET STATE for", pet.Name)
+        local names = {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "Sleeping", "Asleep"}
+        for _, name in ipairs(names) do
+            local attr = pet:GetAttribute(name)
+            if attr ~= nil then
+                print("DEBUG ATTR", name, "=", attr)
+            end
+        end
+
+        local ailmentsFolder = pet:FindFirstChild("ailments") or pet:FindFirstChild("Ailments")
+        if ailmentsFolder then
+            for _, child in ipairs(ailmentsFolder:GetDescendants()) do
+                if child:IsA("BoolValue") or child:IsA("IntValue") or child:IsA("NumberValue") or child:IsA("StringValue") or child:IsA("ObjectValue") then
+                    print("DEBUG AILMENT", child:GetFullName(), child.ClassName, child.Value)
+                end
+            end
+        end
+
+        local active = pet:FindFirstChild("ActivePerformances")
+        if active then
+            for _, perf in ipairs(active:GetDescendants()) do
+                if perf:IsA("BoolValue") or perf:IsA("IntValue") or perf:IsA("NumberValue") or perf:IsA("StringValue") or perf:IsA("ObjectValue") then
+                    print("DEBUG PERF", perf:GetFullName(), perf.ClassName, perf.Value)
+                end
+            end
+        end
+
+        local effects = pet:FindFirstChild("effects") or pet:FindFirstChild("Effects")
+        if effects then
+            for _, child in ipairs(effects:GetDescendants()) do
+                if child:IsA("BoolValue") or child:IsA("IntValue") or child:IsA("NumberValue") or child:IsA("StringValue") or child:IsA("ObjectValue") then
+                    print("DEBUG EFFECT", child:GetFullName(), child.ClassName, child.Value)
+                end
+            end
+        end
     end
 
     local function teleportToTarget(cframe)
@@ -692,6 +762,8 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             end
         end
 
+        debugPetState(selectedPet)
+
         if isSleeping(selectedPet) then
             updateStatus(selectedPet.Name .. " is already sleeping")
             return true
@@ -780,20 +852,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         Flag = "AutoFarmToggle",
         Callback = function(value)
             setAutofarmEnabled(value)
-        end
-    })
-
-    --// Autofarm Run Once Button
-    Tab:CreateButton({
-        Name = "🤖 Run Autofarm",
-        Callback = function()
-            local ok, err = runAutofarmOnce()
-            if not ok then
-                if err then
-                    updateStatus(err)
-                    warn("AUTOFARM RUN ERROR", err)
-                end
-            end
         end
     })
 
