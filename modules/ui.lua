@@ -21,10 +21,41 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local ReplicateActiveReactions = Remotes.ReplicateActiveReactions
 
     local dirtyPetState = setmetatable({}, {__mode = "k"})
+    local sleepyPetState = setmetatable({}, {__mode = "k"})
 
     local function markPetDirty(pet, value)
         if pet and pet:IsA("Model") then
             dirtyPetState[pet] = value
+        end
+    end
+
+    local function markPetSleepy(pet, value)
+        if pet and pet:IsA("Model") then
+            sleepyPetState[pet] = value
+        end
+    end
+
+    local currentAutofarmTask = nil
+    local autofarmTaskQueue = {}
+
+    local function queueAutofarmTask(taskType, pet)
+        table.insert(autofarmTaskQueue, {type = taskType, pet = pet})
+        if not currentAutofarmTask then
+            executeNextAutofarmTask()
+        end
+    end
+
+    local function executeNextAutofarmTask()
+        if #autofarmTaskQueue == 0 then
+            currentAutofarmTask = nil
+            return
+        end
+        local task = table.remove(autofarmTaskQueue, 1)
+        currentAutofarmTask = task
+        if task.type == "shower" then
+            performAutoShower(task.pet)
+        elseif task.type == "sleep" then
+            performAutoSleep(task.pet)
         end
     end
 
@@ -42,6 +73,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
                 if type(data) == "table" then
                     local isDirtyNow = false
+                    local isSleepyNow = false
 
                     if data.TransitionDirty or data.DirtyAilmentReaction then
                         isDirtyNow = true
@@ -49,17 +81,32 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
                     if type(data.effects) == "table" then
                         for _, effect in ipairs(data.effects) do
-                            if tostring(effect):lower() == "stinky" then
+                            local effectLower = tostring(effect):lower()
+                            if effectLower == "stinky" then
                                 isDirtyNow = true
-                                break
+                            end
+                            if effectLower == "sleep" then
+                                isSleepyNow = true
                             end
                         end
                     end
 
                     if isDirtyNow then
                         markPetDirty(pet, true)
+                        if autofarmEnabled and selectedPet == pet then
+                            queueAutofarmTask("shower", pet)
+                        end
                     else
                         markPetDirty(pet, false)
+                    end
+
+                    if isSleepyNow then
+                        markPetSleepy(pet, true)
+                        if autofarmEnabled and selectedPet == pet then
+                            queueAutofarmTask("sleep", pet)
+                        end
+                    else
+                        markPetSleepy(pet, false)
                     end
                 end
             end
@@ -218,6 +265,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             if selectedPet == pet then
                 updateStatus("Remote says modifiers updated")
                 attemptAutoShower(pet, "ReplicatePerformanceModifiers")
+                attemptAutoSleep(pet, "ReplicatePerformanceModifiers")
             end
         end)
     end
@@ -233,6 +281,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                     updateStatus("Remote says pet has active dirty/transform state")
                 end
                 attemptAutoShower(pet, "ReplicateActivePerformances")
+                attemptAutoSleep(pet, "ReplicateActivePerformances")
             end
         end)
     end
@@ -248,6 +297,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                     updateStatus("Remote says pet has active reaction dirty/transform state")
                 end
                 attemptAutoShower(pet, "ReplicateActiveReactions")
+                attemptAutoSleep(pet, "ReplicateActiveReactions")
             end
         end)
     end
@@ -529,18 +579,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isSleepy(pet)
-        local state = getPetState(pet)
-        if not state then
-            return false
-        end
-
-        if stateHasAny(pet, {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "SleepLoop", "drowsy_eyes", "sleepy_eyes", "EnergyLow", "Sleepiness", "Resting"}) then
-            return true
-        end
-        if stateHasEffect(pet, {"drowsy_eyes", "sleepy_eyes", "emit_sweatdrop", "blushing", "tired", "sleepy"}) then
-            return true
-        end
-        return false
+        return pet and sleepyPetState[pet] == true
     end
 
     local function isHungry(pet)
@@ -718,7 +757,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         if not currentPet or currentPet ~= pet then
             return
         end
-        if not canAutoShowerForPet(pet) then
+        if not autofarmEnabled then
             return
         end
         if isSleeping(pet) then
@@ -727,17 +766,20 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         if not isDirty(pet) then
             return
         end
+        queueAutofarmTask("shower", pet)
+    end
 
+    local function performAutoShower(pet)
         local furnitureId, obj = Care.FindShower()
         if not furnitureId or not obj then
             updateStatus("Auto-shower: no shower found")
             warn("AUTO SHOWER: no shower found")
+            executeNextAutofarmTask()
             return
         end
 
-        updateStatus("Auto-shower triggered by " .. source)
-        print("DEBUG AUTO-SHOWER", pet.Name, "source=", source)
-        markAutoShower(pet)
+        updateStatus("Auto-shower triggered")
+        print("DEBUG AUTO-SHOWER", pet.Name)
         markPetDirty(pet, false)
 
         task.spawn(function()
@@ -745,9 +787,75 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             if not success then
                 warn("AUTO SHOWER ERROR", err)
                 updateStatus("Auto shower failed")
-                return
+            else
+                updateStatus(pet.Name .. " is showering")
             end
-            updateStatus(pet.Name .. " is showering")
+            executeNextAutofarmTask()
+        end)
+    end
+
+    local autoSleepThrottle = {}
+
+    local function canAutoSleepForPet(pet)
+        if not pet then
+            return false
+        end
+        if not autofarmEnabled then
+            return false
+        end
+        local last = autoSleepThrottle[pet]
+        if last and (time() - last) < 5 then
+            return false
+        end
+        return true
+    end
+
+    local function markAutoSleep(pet)
+        if pet then
+            autoSleepThrottle[pet] = time()
+        end
+    end
+
+    local function attemptAutoSleep(pet, source)
+        local currentPet = resolveSelectedPet()
+        if not currentPet or currentPet ~= pet then
+            return
+        end
+        if not canAutoSleepForPet(pet) then
+            return
+        end
+        if isSleeping(pet) then
+            return
+        end
+        if not isSleepy(pet) then
+            return
+        end
+        queueAutofarmTask("sleep", pet)
+    end
+
+    local function performAutoSleep(pet)
+        local furnitureId, seat = Sleep.FindBed()
+        if not furnitureId or not seat then
+            updateStatus("Auto-sleep: no bed found")
+            warn("AUTO SLEEP: no bed found")
+            executeNextAutofarmTask()
+            return
+        end
+
+        updateStatus("Auto-sleep triggered")
+        print("DEBUG AUTO-SLEEP", pet.Name)
+        markAutoSleep(pet)
+        markPetSleepy(pet, false)
+
+        task.spawn(function()
+            local success, err = performFurnitureActivation(furnitureId, seat, "Seat1", "bed")
+            if not success then
+                warn("AUTO SLEEP ERROR", err)
+                updateStatus("Auto sleep failed")
+            else
+                updateStatus(pet.Name .. " is sleeping")
+            end
+            executeNextAutofarmTask()
         end)
     end
 
