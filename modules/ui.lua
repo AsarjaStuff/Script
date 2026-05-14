@@ -41,21 +41,24 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 local data = args[2]
 
                 if type(data) == "table" then
+                    local hasStinky = false
+                    
                     if data.TransitionDirty or data.DirtyAilmentReaction then
                         markPetDirty(pet, true)
                     end
 
                     if type(data.effects) == "table" then
-                        local found = false
                         for _, effect in ipairs(data.effects) do
                             if tostring(effect):lower() == "stinky" then
-                                found = true
+                                hasStinky = true
+                                markPetDirty(pet, true)
                                 break
                             end
                         end
-                        if found then
-                            markPetDirty(pet, true)
-                        end
+                    end
+
+                    if not hasStinky and not data.TransitionDirty and not data.DirtyAilmentReaction then
+                        markPetDirty(pet, false)
                     end
                 end
             end
@@ -213,7 +216,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             end
             if selectedPet == pet then
                 updateStatus("Remote says modifiers updated")
-                attemptAutoShower(pet, "ReplicatePerformanceModifiers")
             end
         end)
     end
@@ -228,7 +230,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 if type(data) == "table" and (data.Dirty or data.Transform or data.FocusPet) then
                     updateStatus("Remote says pet has active dirty/transform state")
                 end
-                attemptAutoShower(pet, "ReplicateActivePerformances")
             end
         end)
     end
@@ -243,7 +244,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 if type(data) == "table" and (data.Dirty or data.Transform or data.FocusPet) then
                     updateStatus("Remote says pet has active reaction dirty/transform state")
                 end
-                attemptAutoShower(pet, "ReplicateActiveReactions")
             end
         end)
     end
@@ -685,6 +685,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     local autoShowerThrottle = {}
     local autoShowerDisabled = false
+    local lastDirtyScan = {}
 
     local function canAutoShowerForPet(pet)
         if not pet then
@@ -696,16 +697,16 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         if autoShowerDisabled then
             return false
         end
-        local last = autoShowerThrottle[pet]
-        if last and (time() - last) < 5 then
+        local last = lastDirtyScan[pet]
+        if last and (time() - last) < 1 then
             return false
         end
         return true
     end
 
-    local function markAutoShower(pet)
+    local function markDirtyScan(pet)
         if pet then
-            autoShowerThrottle[pet] = time()
+            lastDirtyScan[pet] = time()
         end
     end
 
@@ -731,9 +732,10 @@ function UI.Init(Pets, Sleep, Care, Remotes)
             return
         end
 
-        updateStatus("Auto-shower triggered by " .. source)
+        updateStatus("Auto-shower triggered")
         print("DEBUG AUTO-SHOWER", pet.Name, "source=", source)
-        markAutoShower(pet)
+        markDirtyScan(pet)
+        markPetDirty(pet, false)
 
         task.spawn(function()
             local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "shower")
@@ -1142,15 +1144,19 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local function autofarmLoopFunction()
         while autofarmEnabled do
             if selectedPet then
-                local ok, err = pcall(runAutofarmOnce)
-                if not ok then
-                    warn("AUTOFARM ERROR", err)
-                    updateStatus("Autofarm error")
+                if isDirty(selectedPet) then
+                    attemptAutoShower(selectedPet, "autofarm-loop")
+                else
+                    local ok, err = pcall(runAutofarmOnce)
+                    if not ok then
+                        warn("AUTOFARM ERROR", err)
+                        updateStatus("Autofarm error")
+                    end
                 end
             else
                 updateStatus("Autofarm enabled but no pet selected")
             end
-            task.wait(4)
+            task.wait(0.5)
         end
         autofarmLoop = nil
     end
