@@ -41,21 +41,25 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 local data = args[2]
 
                 if type(data) == "table" then
+                    local isDirtyNow = false
+
                     if data.TransitionDirty or data.DirtyAilmentReaction then
-                        markPetDirty(pet, true)
+                        isDirtyNow = true
                     end
 
                     if type(data.effects) == "table" then
-                        local found = false
                         for _, effect in ipairs(data.effects) do
                             if tostring(effect):lower() == "stinky" then
-                                found = true
+                                isDirtyNow = true
                                 break
                             end
                         end
-                        if found then
-                            markPetDirty(pet, true)
-                        end
+                    end
+
+                    if isDirtyNow then
+                        markPetDirty(pet, true)
+                    else
+                        markPetDirty(pet, false)
                     end
                 end
             end
@@ -734,6 +738,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         updateStatus("Auto-shower triggered by " .. source)
         print("DEBUG AUTO-SHOWER", pet.Name, "source=", source)
         markAutoShower(pet)
+        markPetDirty(pet, false)
 
         task.spawn(function()
             local success, err = performFurnitureActivation(furnitureId, obj, "UseBlock", "shower")
