@@ -23,24 +23,6 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local dirtyPetState = setmetatable({}, {__mode = "k"})
     local sleepyPetState = setmetatable({}, {__mode = "k"})
 
-    local function bootstrapPetStates()
-    for _, pet in ipairs(Pets.GetPets()) do
-        if pet then
-            local effects = pet:FindFirstChild("effects") or pet:FindFirstChild("Effects")
-            if effects then
-                for _, v in ipairs(effects:GetDescendants()) do
-                    if tostring(v.Name):lower():find("sleep") then
-                        sleepyPetState[pet] = true
-                    end
-                    if tostring(v.Name):lower():find("stink") or tostring(v.Name):lower():find("dirty") then
-                        dirtyPetState[pet] = true
-                    end
-                end
-            end
-        end
-    end
-end
-
     local function markPetDirty(pet, value)
         if pet and pet:IsA("Model") then
             dirtyPetState[pet] = value
