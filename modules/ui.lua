@@ -23,6 +23,72 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     local dirtyPetState = setmetatable({}, {__mode = "k"})
     local sleepyPetState = setmetatable({}, {__mode = "k"})
 
+--// Remote history cache
+local RemoteHistory = {}
+local PetRemoteCache = setmetatable({}, {__mode = "k"})
+local MAX_REMOTE_HISTORY = 150
+
+local function cacheRemote(remoteName, pet, data)
+    if not pet then
+        return
+    end
+
+    if not RemoteHistory[remoteName] then
+        RemoteHistory[remoteName] = {}
+    end
+
+    local packet = {
+        time = tick(),
+        pet = pet,
+        petName = pet.Name,
+        data = data
+    }
+
+    table.insert(RemoteHistory[remoteName], packet)
+
+    if #RemoteHistory[remoteName] > MAX_REMOTE_HISTORY then
+        table.remove(RemoteHistory[remoteName], 1)
+    end
+
+    if not PetRemoteCache[pet] then
+        PetRemoteCache[pet] = {}
+    end
+
+    PetRemoteCache[pet][remoteName] = packet
+end
+
+local function getLastRemotePacket(pet, remoteName)
+    if not pet then
+        return nil
+    end
+
+    local cache = PetRemoteCache[pet]
+    if not cache then
+        return nil
+    end
+
+    return cache[remoteName]
+end
+
+local function getMergedRemoteState(pet)
+    local merged = {}
+
+    local cache = PetRemoteCache[pet]
+    if not cache then
+        return merged
+    end
+
+    for remoteName, packet in pairs(cache) do
+        if type(packet.data) == "table" then
+            for key, value in pairs(packet.data) do
+                merged[key] = value
+            end
+        end
+    end
+
+    return merged
+end
+
     local function markPetDirty(pet, value)
         if pet and pet:IsA("Model") then
             dirtyPetState[pet] = value
@@ -74,6 +140,8 @@ function UI.Init(Pets, Sleep, Care, Remotes)
                 if type(data) == "table" then
                     local isDirtyNow = false
                     local isSleepyNow = false
+
+                    cacheRemote("ReplicatePerformanceModifiers", pet, data)
 
                     if data.TransitionDirty or data.DirtyAilmentReaction then
                         isDirtyNow = true
@@ -177,7 +245,22 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         if not pet then
             return nil
         end
-        return PetState[pet]
+
+        local merged = {}
+
+        local localState = PetState[pet]
+        if localState then
+            for k,v in pairs(localState) do
+                merged[k] = v
+             end
+        end
+
+        local remoteState = getMergedRemoteState(pet)
+             for k,v in pairs(remoteState) do
+                 merged[k] = v
+        end
+
+        return merged
     end
 
     local function stateHasAny(pet, keys)
@@ -258,6 +341,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     --// Debug Remote Listeners
     if ReplicatePerformanceModifiers and ReplicatePerformanceModifiers:IsA("RemoteEvent") then
         ReplicatePerformanceModifiers.OnClientEvent:Connect(function(pet, data)
+            cacheRemote("ReplicatePerformanceModifiers", pet, data)
             print("DEBUG REMOTE: ReplicatePerformanceModifiers fired", pet and pet.Name, data)
             if pet then
                 updatePetState(pet, data)
@@ -272,6 +356,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     if ReplicateActivePerformances and ReplicateActivePerformances:IsA("RemoteEvent") then
         ReplicateActivePerformances.OnClientEvent:Connect(function(pet, data)
+            cacheRemote("ReplicateActivePerformances", pet, data)
             print("DEBUG REMOTE: ReplicateActivePerformances fired", pet and pet.Name, data)
             if pet then
                 updatePetState(pet, data)
@@ -288,6 +373,7 @@ function UI.Init(Pets, Sleep, Care, Remotes)
 
     if ReplicateActiveReactions and ReplicateActiveReactions:IsA("RemoteEvent") then
         ReplicateActiveReactions.OnClientEvent:Connect(function(pet, data)
+            cacheRemote("ReplicateActiveReactions", pet, data)
             print("DEBUG REMOTE: ReplicateActiveReactions fired", pet and pet.Name, data)
             if pet then
                 updatePetState(pet, data)
@@ -575,12 +661,60 @@ function UI.Init(Pets, Sleep, Care, Remotes)
     end
 
     local function isDirty(pet)
-        return pet and dirtyPetState[pet] == true
+    if not pet then
+        return false
     end
 
-    local function isSleepy(pet)
-        return pet and sleepyPetState[pet] == true
+    if dirtyPetState[pet] == true then
+        return true
     end
+
+    local packet = getLastRemotePacket(pet, "ReplicatePerformanceModifiers")
+
+    if packet and type(packet.data) == "table" then
+        local data = packet.data
+
+        if data.TransitionDirty or data.DirtyAilmentReaction then
+            return true
+        end
+
+        if type(data.effects) == "table" then
+            for _, effect in ipairs(data.effects) do
+                if tostring(effect):lower() == "stinky" then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+    local function isSleepy(pet)
+    if not pet then
+        return false
+    end
+
+    if sleepyPetState[pet] == true then
+        return true
+    end
+
+    local packet = getLastRemotePacket(pet, "ReplicatePerformanceModifiers")
+
+    if packet and type(packet.data) == "table" then
+        local data = packet.data
+
+        if type(data.effects) == "table" then
+            for _, effect in ipairs(data.effects) do
+                if tostring(effect):lower() == "sleep" then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
 
     local function isHungry(pet)
         local state = getPetState(pet)
@@ -637,6 +771,24 @@ function UI.Init(Pets, Sleep, Care, Remotes)
         else
             print("DEBUG CACHED STATE: none")
         end
+
+        print("===== REMOTE HISTORY =====")
+        local cache = PetRemoteCache[pet]
+        if cache then
+            for remoteName, packet in pairs(cache) do
+                print("REMOTE:", remoteName)
+                print("TIME:", packet.time)
+
+                if type(packet.data) == "table" then
+                    for k, v in pairs(packet.data) do
+                        print("  ", k, v)
+                    end
+                else
+                    print(packet.data)
+                end
+            end
+        end
+    end
 
         local names = {"sleepy", "Sleepy", "Tired", "NeedsSleep", "Sleep", "FallAsleep", "FocusPet", "Sleeping", "Asleep", "Dirty", "dirty", "Stinky", "stinky", "NeedsBath", "Bath", "Transform"}
         for _, name in ipairs(names) do
