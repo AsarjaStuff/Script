@@ -6,8 +6,11 @@ local Remotes = {}
 Remotes.HoldBaby = API:WaitForChild("AdoptAPI/HoldBaby")
 Remotes.EjectBaby = API:WaitForChild("AdoptAPI/EjectBaby")
 Remotes.ActivateFurniture = API:WaitForChild("HousingAPI/ActivateFurniture")
-Remotes.ReplicatePerformanceModifiers = API:WaitForChild("PetAPI/ReplicatePerformanceModifiers")
-Remotes.ReplicateActivePerformances = API:FindFirstChild("PetAPI/ReplicateActivePerformances")
-Remotes.ReplicateActiveReactions = API:FindFirstChild("PetAPI/ReplicateActiveReactions")
+Remotes.DataChanged = API:WaitForChild("DataAPI/DataChanged")
+
+Remotes.ToolEquip = API:WaitForChild("ToolAPI/Equip")
+Remotes.ToolUnequip = API:WaitForChild("ToolAPI/Unequip")
+Remotes.ServerUseTool = API:WaitForChild("ToolAPI/ServerUseTool")
+Remotes.CreatePetObject = API:WaitForChild("PetObjectAPI/CreatePetObject")
 
 return Remotes
