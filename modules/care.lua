@@ -42,12 +42,14 @@ local function resolveTarget(obj)
 end
 
 local function findUseBlockByKeyword(keywords)
-    local fallback
-    for _,obj in pairs(workspace:GetDescendants()) do
+    local root = workspace:FindFirstChild("HouseInteriors")
+    if not root then
+        return nil, nil
+    end
+    for _,obj in pairs(root:GetDescendants()) do
         local furnitureId = getFurnitureId(obj)
         if furnitureId then
             local text = getAncestorText(obj)
-            print("DEBUG: furniture candidate", obj:GetFullName(), furnitureId, text)
             for _,keyword in ipairs(keywords) do
                 if text:find(keyword, 1, true) then
                     local target = resolveTarget(obj)
@@ -57,20 +59,9 @@ local function findUseBlockByKeyword(keywords)
                     end
                 end
             end
-            if not fallback then
-                local target = resolveTarget(obj)
-                if target then
-                    fallback = {id = furnitureId, target = target}
-                end
-            end
         end
     end
-    if fallback then
-        print("DEBUG: using fallback furniture", fallback.id, fallback.target:GetFullName())
-    else
-        print("DEBUG: no furniture fallback found")
-    end
-    return fallback and fallback.id, fallback and fallback.target
+    return nil, nil
 end
 
 function Care.FindFood()

@@ -439,7 +439,13 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         -- Try to find furniture locally
         id, target = findFunc()
 
-        -- Accept the finder result directly; keyword filtering can reject valid streamed furniture.
+        -- If this is a house need, ignore any non-house target so we always load the house
+        local homeNeed = needType == "food" or needType == "drink" or needType == "shower" or needType == "toilet" or needType == "bed"
+        local houseInteriors = workspace:FindFirstChild("HouseInteriors")
+        if homeNeed and target and (not houseInteriors or not target:IsDescendantOf(houseInteriors)) then
+            print("[ui] useFurniture: ignoring outside target for house need", needType, safeName(target))
+            id, target = nil, nil
+        end
 
         -- If the found target is part of HouseInteriors, prefer entering the house first
         if target and workspace:FindFirstChild("HouseInteriors") and target:IsDescendantOf(workspace.HouseInteriors) then
@@ -770,6 +776,82 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return nil
     end
 
+    local function findNeighborhoodDesertDoor()
+        return workspace:FindFirstChild("Interiors")
+            and workspace.Interiors:FindFirstChild("Neighborhood!Desert")
+            and workspace.Interiors["Neighborhood!Desert"].Doors
+            and workspace.Interiors["Neighborhood!Desert"].Doors:FindFirstChild("MainDoor")
+            and workspace.Interiors["Neighborhood!Desert"].Doors.MainDoor:FindFirstChild("WorkingParts")
+            and workspace.Interiors["Neighborhood!Desert"].Doors.MainDoor.WorkingParts:FindFirstChild("TouchToEnter")
+    end
+
+    local function flyToTouchToEnter(part)
+        if not part or not part.Parent then
+            return false
+        end
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then
+            return false
+        end
+
+        local RunService = game:GetService("RunService")
+        local speed = 120
+        local stopDistance = 2
+        local conn
+
+        char:PivotTo(hrp.CFrame + Vector3.new(0, 10, 0))
+        task.wait(0.25)
+
+        conn = RunService.Heartbeat:Connect(function(dt)
+            if not hrp or not hrp.Parent then
+                conn:Disconnect()
+                return
+            end
+            if not part or not part.Parent then
+                conn:Disconnect()
+                return
+            end
+            local direction = (part.Position - hrp.Position)
+            local distance = direction.Magnitude
+            if distance <= stopDistance then
+                conn:Disconnect()
+                return
+            end
+            hrp.CFrame = hrp.CFrame + direction.Unit * speed * dt
+        end)
+
+        local startTime = os.clock()
+        while os.clock() - startTime < 10 do
+            if not part or not part.Parent then
+                break
+            end
+            local distance = (part.Position - hrp.Position).Magnitude
+            if distance <= stopDistance then
+                break
+            end
+            task.wait(0.1)
+        end
+
+        if conn then
+            pcall(function() conn:Disconnect() end)
+        end
+        return true
+    end
+
+    local function loadOutdoorEntryDoor()
+        for i = 1, 3 do
+            local door = findNeighborhoodDesertDoor()
+            if door then
+                flyToTouchToEnter(door)
+                task.wait(3)
+                return true
+            end
+            task.wait(1)
+        end
+        return false
+    end
+
     local function teleportToSafePart(target)
         local part = resolveTeleportPart(target)
         if not part then
@@ -969,7 +1051,12 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
-        -- Find target AFTER exiting and waiting
+        -- First move to the outdoor desert door so the special-area stream can load
+        if not loadOutdoorEntryDoor() then
+            warn("[ui] teleportForSpecialNeed: Neighborhood desert door not found")
+        end
+
+        -- Find target AFTER exiting, loading the desert entrance, and waiting
         local target = findCustomTeleportTarget(pet)
         if not target then
             setStatus("Special area target not found")
@@ -1058,7 +1145,12 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return
         end
 
-        -- Find target AFTER exiting and waiting
+        -- Load the outdoor entry door so the streamed special area can appear
+        if not loadOutdoorEntryDoor() then
+            warn("[ui] teleportToNamedTargetAsync: Neighborhood desert door not found")
+        end
+
+        -- Find target AFTER exiting, door load, and waiting
         local target = getTeleportTarget(name)
         print("[ui] getTeleportTarget returned:", target and target:GetFullName() or "nil")
         if not target then
