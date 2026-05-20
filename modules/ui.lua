@@ -36,6 +36,16 @@ local AILMENT_DISPLAY = {
     walk = "Walk",
 }
 
+-- Teleport destination placeholders.
+-- Add up to 2-3 CFrames per destination here when you want to restore teleports.
+local TELEPORT_DESTINATIONS = {
+    beach = {},
+    school = {},
+    camping = {},
+    playground = {},
+    salon = {},
+}
+
 local function setLabel(label, text, color)
     if not label then
         return
@@ -203,12 +213,30 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     local actionBusy = false
     local track = PetState.TRACKED_AILMENTS
 
+    local houseReady = false
+
     local function isInsideHouse()
         return workspace:FindFirstChild("HouseInteriors") ~= nil
     end
 
-    local function isHouseReady()
-        return isInsideHouse()
+    local function checkHouseReady()
+        if houseReady then
+            return true
+        end
+        if isInsideHouse() then
+            houseReady = true
+            return true
+        end
+        if not PushFurnitureChanges then
+            return true
+        end
+        local ok = pcall(function()
+            PushFurnitureChanges:FireServer({})
+        end)
+        if ok then
+            houseReady = true
+        end
+        return ok
     end
 
     local function refreshPetDropdown()
@@ -264,22 +292,17 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return bp and bp.CFrame
     end
 
-    local function sendRemote(remote, ...)
-        if not remote then
-            return false, "remote missing"
-        end
-        local args = {...}
-        if type(remote.InvokeServer) == "function" then
+    local function invokeFurnitureRemote(playerArg, idArg, partNameArg, paramsArg, petArg)
+        if type(ActivateFurniture.FireServer) == "function" then
             return pcall(function()
-                return remote:InvokeServer(unpack(args))
+                ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
             end)
-        elseif type(remote.FireServer) == "function" then
+        elseif type(ActivateFurniture.InvokeServer) == "function" then
             return pcall(function()
-                remote:FireServer(unpack(args))
-                return true
+                ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
             end)
         end
-        return false, "remote has no InvokeServer or FireServer"
+        return false, "ActivateFurniture remote missing"
     end
 
     local function enterHouseViaDoor()
@@ -416,45 +439,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         -- Try to find furniture locally
         id, target = findFunc()
 
-        -- Helper: get ancestor text for target to verify it's the correct furniture
-        local function getAncestorTextLocal(instance)
-            local parts = {}
-            local current = instance
-            while current do
-                table.insert(parts, current.Name:lower())
-                current = current.Parent
-            end
-            return table.concat(parts, " ")
-        end
-
-        local NEED_KEYWORDS = {
-            food = {"food", "petfood", "bowl", "feeder", "kitchen"},
-            drink = {"water", "bowl", "fountain", "tap", "waterbowl"},
-            shower = {"shower", "bath", "bathtub", "petbathtub"},
-            toilet = {"toilet", "restroom", "wc"},
-            bed = {"bed", "sleep", "mattress"},
-        }
-
-        -- If a target was found, ensure it matches the need more specifically
-        if id and target then
-            local okMatch = false
-            local keywords = NEED_KEYWORDS[needType]
-            if keywords then
-                local text = getAncestorTextLocal(target)
-                for _,kw in ipairs(keywords) do
-                    if text:find(kw, 1, true) then
-                        okMatch = true
-                        break
-                    end
-                end
-            else
-                okMatch = true
-            end
-            if not okMatch then
-                    print("[ui] useFurniture: found target does not match needType, ignoring:", needType, id, safeName(target))
-                id, target = nil, nil
-            end
-        end
+        -- Accept the finder result directly; keyword filtering can reject valid streamed furniture.
 
         -- If the found target is part of HouseInteriors, prefer entering the house first
         if target and workspace:FindFirstChild("HouseInteriors") and target:IsDescendantOf(workspace.HouseInteriors) then
@@ -470,40 +455,21 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
 
         -- If not found, attempt entering house and rescanning a few times
         if not id or not target then
-            local found = false
             for i = 1, 3 do
                 setStatus("TPing to house for " .. needType)
-                    print("[ui] useFurniture: attempt", i, "to enter house and rescan for", needType)
-                if not enterHouseViaDoor() then
-                    print("[ui] useFurniture: enterHouseViaDoor failed on attempt", i)
-                else
+                print("[ui] useFurniture: attempt", i, "to enter house and rescan for", needType)
+                if enterHouseViaDoor() then
                     id, target = findFunc()
-                    -- verify match again after re-scan
-                    if id and target then
-                        local text = getAncestorTextLocal(target)
-                        local keywords = NEED_KEYWORDS[needType]
-                        local okMatch = false
-                        if keywords then
-                            for _,kw in ipairs(keywords) do
-                                if text:find(kw, 1, true) then okMatch = true break end
-                            end
-                        else
-                            okMatch = true
-                        end
-                        if not okMatch then
-                            print("[ui] useFurniture: rescan target doesn't match needType, ignoring:", id, safeName(target))
-                            id, target = nil, nil
-                        end
-                    end
                     print("[ui] useFurniture: rescan result:", id, safeName(target))
                     if id and target then
-                        found = true
                         break
                     end
+                else
+                    print("[ui] useFurniture: enterHouseViaDoor failed on attempt", i)
                 end
                 task.wait(1)
             end
-            if not found then
+            if not id or not target then
                 return false
             end
         end
@@ -517,7 +483,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
-        return sendRemote(ActivateFurniture, player, id, partName, {cframe = cf}, pet)
+        return invokeFurnitureRemote(player, id, partName, {cframe = cf}, pet)
     end
 
     local ToyIdLabel = nil
@@ -577,7 +543,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     local ControlsTab = Window:CreateTab("Controls", 0)
     local NeedsTab = Window:CreateTab("Pet Needs", 0)
     local ReqTab = Window:CreateTab("Requirements", 0)
-    local TpTab = Window:CreateTab("TP", 0)
 
     ControlsTab:CreateSection("Status")
     local StatusLabel = ControlsTab:CreateLabel("Status: Ready")
@@ -615,7 +580,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     end
 
     local function refreshRequirements()
-        if not isHouseReady() then
+        if not checkHouseReady() then
             setStatus("Enter house")
             return
         end
@@ -646,48 +611,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         Callback = function()
             pcall(refreshRequirements)
             setStatus("Requirements scanned")
-        end,
-    })
-
-    TpTab:CreateSection("Teleport Tests")
-    TpTab:CreateButton({
-        Name = "TP Beach",
-        Callback = function()
-            task.spawn(function()
-                teleportToNamedTargetAsync("beach")
-            end)
-        end,
-    })
-    TpTab:CreateButton({
-        Name = "TP School",
-        Callback = function()
-            task.spawn(function()
-                teleportToNamedTargetAsync("school")
-            end)
-        end,
-    })
-    TpTab:CreateButton({
-        Name = "TP Camping",
-        Callback = function()
-            task.spawn(function()
-                teleportToNamedTargetAsync("camping")
-            end)
-        end,
-    })
-    TpTab:CreateButton({
-        Name = "TP Playground",
-        Callback = function()
-            task.spawn(function()
-                teleportToNamedTargetAsync("playground")
-            end)
-        end,
-    })
-    TpTab:CreateButton({
-        Name = "TP Salon",
-        Callback = function()
-            task.spawn(function()
-                teleportToNamedTargetAsync("salon")
-            end)
         end,
     })
 
@@ -1219,7 +1142,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         if not pet then
             return
         end
-        if not isHouseReady() then
+        if not checkHouseReady() then
             setStatus("Enter house")
             return
         end
