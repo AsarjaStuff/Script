@@ -254,7 +254,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         if not selectedPetName or not table.find(options, selectedPetName) then
             selectedPetName = options[1]
         end
-        PetDropdown:Set({selectedPetName})
+        PetDropdown:Set(selectedPetName)
     end
 
     local function getPet()
@@ -1321,11 +1321,15 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     PetDropdown = ControlsTab:CreateDropdown({
         Name = "Select Pet",
         Options = {"No pets available"},
-        CurrentOption = {"No pets available"},
+        CurrentOption = "No pets available",
         MultipleOptions = false,
         Flag = "PetDropdown",
         Callback = function(o)
-            selectedPetName = (o[1] ~= "No pets available") and o[1] or nil
+            local selected = o
+            if type(o) == "table" then
+                selected = o[1]
+            end
+            selectedPetName = (selected ~= "No pets available") and selected or nil
             refreshAilments()
         end,
     })
@@ -1339,7 +1343,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             end
             if #o > 0 then
                 PetDropdown:Refresh(o)
-                PetDropdown:Set({o[1]})
+                PetDropdown:Set(o[1])
                 selectedPetName = o[1]
             end
             refreshAilments()
@@ -1362,7 +1366,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         Name = "Hold",
         Callback = function()
             local p = getPet()
-            if p then
+            if p and HoldBaby and type(HoldBaby.FireServer) == "function" then
                 pcall(function()
                     HoldBaby:FireServer(p)
                 end)
@@ -1373,7 +1377,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         Name = "Drop",
         Callback = function()
             local p = getPet()
-            if p then
+            if p and EjectBaby and type(EjectBaby.FireServer) == "function" then
                 pcall(function()
                     EjectBaby:FireServer(p)
                 end)
@@ -1468,7 +1472,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end
         PetDropdown:Refresh(o)
         selectedPetName = o[1]
-        PetDropdown:Set({o[1]})
+        PetDropdown:Set(o[1])
     end
 
     refreshRequirements()

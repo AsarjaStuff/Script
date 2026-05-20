@@ -175,16 +175,16 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         if #petOptions > 0 then
             PetDropdown:Refresh(petOptions)
             if selectedPetName and Helpers.tableContains(petOptions, selectedPetName) then
-                PetDropdown:Set({selectedPetName})
+                PetDropdown:Set(selectedPetName)
             else
                 selectedPetName = petOptions[1]
-                PetDropdown:Set({selectedPetName})
+                PetDropdown:Set(selectedPetName)
             end
             status.updateStatus("Found " .. #petOptions .. " pets")
         else
             selectedPetName = nil
             PetDropdown:Refresh({"No pets available"})
-            PetDropdown:Set({"No pets available"})
+            PetDropdown:Set("No pets available")
             status.updateStatus("No pets found")
         end
         refreshSelectedPetStatus()
@@ -193,11 +193,14 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
     PetDropdown = tab:CreateDropdown({
         Name = "Select Pet",
         Options = {"No pets available"},
-        CurrentOption = {"No pets available"},
+        CurrentOption = "No pets available",
         MultipleOptions = false,
         Flag = "PetDropdown",
         Callback = function(options)
-            local name = options[1]
+            local name = options
+            if type(options) == "table" then
+                name = options[1]
+            end
             if name == "No pets available" then
                 selectedPetName = nil
                 status.updateStatus("No pet selected")
@@ -233,7 +236,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
 
     tab:CreateButton({Name = "❌ Clear Selection", Callback = function()
         selectedPetName = nil
-        PetDropdown:Set({"No pets available"})
+        PetDropdown:Set("No pets available")
         status.updateStatus("Selection cleared")
         refreshSelectedPetStatus()
     end})
