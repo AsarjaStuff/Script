@@ -27,6 +27,10 @@ local AILMENT_DISPLAY = {
     thirsty = "Thirst",
     toilet = "Toilet",
     school = "School",
+    beach_party = "Beach Party",
+    camping = "Camping",
+    playground = "Playground",
+    salon = "Salon",
     pet_me = "Pet Me",
     play = "Play",
     walk = "Walk",
@@ -188,6 +192,8 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     local HoldBaby = Remotes.HoldBaby
     local EjectBaby = Remotes.EjectBaby
     local ActivateFurniture = Remotes.ActivateFurniture
+    local UnsubscribeFromHouse = Remotes.UnsubscribeFromHouse
+    local PushFurnitureChanges = Remotes.PushFurnitureChanges
     local DataChanged = Remotes.DataChanged
 
     local selectedPetName = nil
@@ -197,36 +203,47 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     local actionBusy = false
     local track = PetState.TRACKED_AILMENTS
 
-    local function getPet()
-        if not selectedPetName then
-            return nil
-        end
-        local p = Pets.FindPetByName(selectedPetName)
-        if p and p.Parent and p:IsDescendantOf(workspace) then
-            return p
-        end
-        return nil
+    local function isInsideHouse()
+        return workspace:FindFirstChild("HouseInteriors") ~= nil
     end
 
-    local function sendRemote(remote, ...)
-        if not remote then
-            return false, "remote missing"
+    local function isHouseReady()
+        return isInsideHouse()
+    end
+
+    local function refreshPetDropdown()
+        if not PetDropdown then
+            return
         end
-        local call
-        if type(remote.InvokeServer) == "function" then
-            call = function(...)
-                return remote:InvokeServer(...)
+        local options = {}
+        for _, p in ipairs(Pets.GetPets()) do
+            table.insert(options, p.Name)
+        end
+        if #options == 0 then
+            return
+        end
+        PetDropdown:Refresh(options)
+        if not selectedPetName or not table.find(options, selectedPetName) then
+            selectedPetName = options[1]
+        end
+        PetDropdown:Set({selectedPetName})
+    end
+
+    local function getPet()
+        if selectedPetName then
+            local p = Pets.FindPetByName(selectedPetName)
+            if p and p.Parent and p:IsDescendantOf(workspace) then
+                return p
             end
-        elseif type(remote.FireServer) == "function" then
-            call = function(...)
-                remote:FireServer(...)
-                return true
+        end
+        refreshPetDropdown()
+        if selectedPetName then
+            local p = Pets.FindPetByName(selectedPetName)
+            if p and p.Parent and p:IsDescendantOf(workspace) then
+                return p
             end
         end
-        if not call then
-            return false, "remote has no InvokeServer or FireServer"
-        end
-        return pcall(call, ...)
+        return nil
     end
 
     local function resolveCFrame(target, partName)
@@ -247,6 +264,127 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return bp and bp.CFrame
     end
 
+    local function sendRemote(remote, ...)
+        if not remote then
+            return false, "remote missing"
+        end
+        local args = {...}
+        if type(remote.InvokeServer) == "function" then
+            return pcall(function()
+                return remote:InvokeServer(unpack(args))
+            end)
+        elseif type(remote.FireServer) == "function" then
+            return pcall(function()
+                remote:FireServer(unpack(args))
+                return true
+            end)
+        end
+        return false, "remote has no InvokeServer or FireServer"
+    end
+
+    local function enterHouseViaDoor()
+        print("[ui] enterHouseViaDoor: attempting house exit + entry")
+
+        if not exitHouseToMainArea() then
+            print("[ui] enterHouseViaDoor: exitHouseToMainArea failed")
+            return false
+        end
+
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then
+            print("[ui] enterHouseViaDoor: missing HumanoidRootPart")
+            return false
+        end
+
+        -- Try common path first
+        local function findHouseDoorTouch()
+            local p = workspace:FindFirstChild("HouseExteriors")
+            if p and p["1"] and p["1"].Micro and p["1"].Micro.Doors and p["1"].Micro.Doors.MainDoor then
+                local wp = p["1"].Micro.Doors.MainDoor:FindFirstChild("WorkingParts")
+                if wp then
+                    local t = wp:FindFirstChild("TouchToEnter")
+                    if t then return t end
+                end
+            end
+            -- Fallback: search descendants for TouchToEnter under HouseExteriors
+            if workspace:FindFirstChild("HouseExteriors") then
+                for _, v in pairs(workspace.HouseExteriors:GetDescendants()) do
+                    if v.Name == "TouchToEnter" and v:IsA("BasePart") then
+                        return v
+                    end
+                end
+            end
+            return nil
+        end
+
+        local doorPart = findHouseDoorTouch()
+        -- Try a few times: sometimes HouseExteriors take a moment to populate after exitHouseToMainArea
+        local doorPart = nil
+        for i = 1, 4 do
+            doorPart = findHouseDoorTouch()
+            if doorPart then break end
+            print("[ui] enterHouseViaDoor: TouchToEnter not found, retrying ("..i..")")
+            task.wait(1)
+        end
+        if not doorPart then
+            print("[ui] enterHouseViaDoor: Door TouchToEnter not found after retries")
+            -- Fallback: try to find MainDoor model and teleport near it
+            local fallback = workspace:FindFirstChild("HouseExteriors")
+                and workspace.HouseExteriors["1"]
+                and workspace.HouseExteriors["1"].Micro
+                and workspace.HouseExteriors["1"].Micro.Doors
+                and workspace.HouseExteriors["1"].Micro.Doors.MainDoor
+            if fallback then
+                local fp = resolveTeleportPart(fallback)
+                if fp then
+                    print("[ui] enterHouseViaDoor: falling back to MainDoor part", safeName(fp))
+                    -- place player above the fallback part
+                    local char = player.Character or player.CharacterAdded:Wait()
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        char:PivotTo(fp.CFrame + Vector3.new(0, 5, 0))
+                        task.wait(1)
+                        return true
+                    end
+                end
+            end
+            setStatus("Door not found")
+            return false
+        end
+
+        print("[ui] enterHouseViaDoor: flying to door", safeName(doorPart))
+        -- start above the door so you "fly"
+        char:PivotTo(hrp.CFrame + Vector3.new(0, 10, 0))
+
+        local RunService = game:GetService("RunService")
+        local speed = 120
+        local stopDistance = 2
+        local conn
+
+        conn = RunService.Heartbeat:Connect(function(dt)
+            if not hrp or not hrp.Parent then
+                conn:Disconnect()
+                return
+            end
+
+            local direction = (doorPart.Position - hrp.Position)
+            local distance = direction.Magnitude
+
+            if distance <= stopDistance then
+                conn:Disconnect()
+                return
+            end
+
+            direction = direction.Unit
+            hrp.CFrame = hrp.CFrame + direction * speed * dt
+        end)
+
+        task.wait(5)
+        print("[ui] enterHouseViaDoor: arrived at door")
+        return true
+    end
+
     local function useFurniture(needType, pet)
         pet = pet or getPet()
         if not pet then
@@ -254,23 +392,120 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end
 
         local id, target, partName
+        local findFunc = nil
+
         if needType == "food" then
-            id, target = Care.FindFood()
+            findFunc = Care.FindFood
             partName = "UseBlock"
         elseif needType == "drink" then
-            id, target = Care.FindDrink()
+            findFunc = Care.FindDrink
             partName = "UseBlock"
         elseif needType == "shower" then
-            id, target = Care.FindShower()
+            findFunc = Care.FindShower
             partName = "UseBlock"
         elseif needType == "toilet" then
-            id, target = Care.FindToilet()
+            findFunc = Care.FindToilet
             partName = "Seat1"
         elseif needType == "bed" then
-            id, target = Sleep.FindBed()
+            findFunc = Sleep.FindBed
             partName = "Seat1"
         else
             return false
+        end
+
+        -- Try to find furniture locally
+        id, target = findFunc()
+
+        -- Helper: get ancestor text for target to verify it's the correct furniture
+        local function getAncestorTextLocal(instance)
+            local parts = {}
+            local current = instance
+            while current do
+                table.insert(parts, current.Name:lower())
+                current = current.Parent
+            end
+            return table.concat(parts, " ")
+        end
+
+        local NEED_KEYWORDS = {
+            food = {"food", "petfood", "bowl", "feeder", "kitchen"},
+            drink = {"water", "bowl", "fountain", "tap", "waterbowl"},
+            shower = {"shower", "bath", "bathtub", "petbathtub"},
+            toilet = {"toilet", "restroom", "wc"},
+            bed = {"bed", "sleep", "mattress"},
+        }
+
+        -- If a target was found, ensure it matches the need more specifically
+        if id and target then
+            local okMatch = false
+            local keywords = NEED_KEYWORDS[needType]
+            if keywords then
+                local text = getAncestorTextLocal(target)
+                for _,kw in ipairs(keywords) do
+                    if text:find(kw, 1, true) then
+                        okMatch = true
+                        break
+                    end
+                end
+            else
+                okMatch = true
+            end
+            if not okMatch then
+                    print("[ui] useFurniture: found target does not match needType, ignoring:", needType, id, safeName(target))
+                id, target = nil, nil
+            end
+        end
+
+        -- If the found target is part of HouseInteriors, prefer entering the house first
+        if target and workspace:FindFirstChild("HouseInteriors") and target:IsDescendantOf(workspace.HouseInteriors) then
+            print("[ui] useFurniture: target inside HouseInteriors — entering house for", needType)
+            setStatus("TPing to house for " .. needType)
+            if not enterHouseViaDoor() then
+                print("[ui] enterHouseViaDoor failed")
+                return false
+            end
+            id, target = findFunc()
+            print("[ui] re-scan after entering house — found:", id, safeName(target))
+        end
+
+        -- If not found, attempt entering house and rescanning a few times
+        if not id or not target then
+            local found = false
+            for i = 1, 3 do
+                setStatus("TPing to house for " .. needType)
+                    print("[ui] useFurniture: attempt", i, "to enter house and rescan for", needType)
+                if not enterHouseViaDoor() then
+                    print("[ui] useFurniture: enterHouseViaDoor failed on attempt", i)
+                else
+                    id, target = findFunc()
+                    -- verify match again after re-scan
+                    if id and target then
+                        local text = getAncestorTextLocal(target)
+                        local keywords = NEED_KEYWORDS[needType]
+                        local okMatch = false
+                        if keywords then
+                            for _,kw in ipairs(keywords) do
+                                if text:find(kw, 1, true) then okMatch = true break end
+                            end
+                        else
+                            okMatch = true
+                        end
+                        if not okMatch then
+                            print("[ui] useFurniture: rescan target doesn't match needType, ignoring:", id, safeName(target))
+                            id, target = nil, nil
+                        end
+                    end
+                    print("[ui] useFurniture: rescan result:", id, safeName(target))
+                    if id and target then
+                        found = true
+                        break
+                    end
+                end
+                task.wait(1)
+            end
+            if not found then
+                return false
+            end
         end
 
         if not id or not target then
@@ -282,14 +517,10 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
-        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.CFrame = cf * CFrame.new(0, 0, -5)
-        end
-
-        local ok, err = sendRemote(ActivateFurniture, player, id, partName, {cframe = cf}, pet)
-        return ok, err
+        return sendRemote(ActivateFurniture, player, id, partName, {cframe = cf}, pet)
     end
+
+    local ToyIdLabel = nil
 
     local function getToyId()
         if Toys.getToyId then
@@ -299,6 +530,9 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     end
 
     local function refreshToyLabel()
+        if not ToyIdLabel then
+            return
+        end
         local name = (Toys.getToyDisplayName and Toys.getToyDisplayName()) or "squeaky_bone_default"
         if Toys.hasEquipToy and Toys.hasEquipToy() then
             setLabel(ToyIdLabel, "Toy: " .. name .. "  ·  equip_manager", COLOR_ACTIVE)
@@ -343,16 +577,26 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     local ControlsTab = Window:CreateTab("Controls", 0)
     local NeedsTab = Window:CreateTab("Pet Needs", 0)
     local ReqTab = Window:CreateTab("Requirements", 0)
+    local TpTab = Window:CreateTab("TP", 0)
 
     ControlsTab:CreateSection("Status")
     local StatusLabel = ControlsTab:CreateLabel("Status: Ready")
-    local ToyIdLabel = ControlsTab:CreateLabel("Toy: squeaky_bone_default")
 
     local function setStatus(t)
         setLabel(StatusLabel, "Status: " .. t, COLOR_DIM)
     end
 
-    refreshToyLabel()
+    local function safeName(o)
+        if not o then return "nil" end
+        if type(o) ~= "userdata" then return tostring(o) end
+        if pcall(function() return o:GetFullName() end) then
+            return o:GetFullName()
+        end
+        if pcall(function() return tostring(o.Name) end) then
+            return tostring(o.Name)
+        end
+        return tostring(o)
+    end
 
     NeedsTab:CreateSection("Pet Status")
     local PetIdLabel = NeedsTab:CreateLabel("Selected: —")
@@ -371,6 +615,10 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     end
 
     local function refreshRequirements()
+        if not isHouseReady() then
+            setStatus("Enter house")
+            return
+        end
         local ok, err = pcall(function()
             Requirements.scan(Care, Sleep, Toys, player)
         end)
@@ -398,6 +646,48 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         Callback = function()
             pcall(refreshRequirements)
             setStatus("Requirements scanned")
+        end,
+    })
+
+    TpTab:CreateSection("Teleport Tests")
+    TpTab:CreateButton({
+        Name = "TP Beach",
+        Callback = function()
+            task.spawn(function()
+                teleportToNamedTargetAsync("beach")
+            end)
+        end,
+    })
+    TpTab:CreateButton({
+        Name = "TP School",
+        Callback = function()
+            task.spawn(function()
+                teleportToNamedTargetAsync("school")
+            end)
+        end,
+    })
+    TpTab:CreateButton({
+        Name = "TP Camping",
+        Callback = function()
+            task.spawn(function()
+                teleportToNamedTargetAsync("camping")
+            end)
+        end,
+    })
+    TpTab:CreateButton({
+        Name = "TP Playground",
+        Callback = function()
+            task.spawn(function()
+                teleportToNamedTargetAsync("playground")
+            end)
+        end,
+    })
+    TpTab:CreateButton({
+        Name = "TP Salon",
+        Callback = function()
+            task.spawn(function()
+                teleportToNamedTargetAsync("salon")
+            end)
         end,
     })
 
@@ -514,6 +804,413 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         setStatus("Walk done")
     end
 
+    local function petHasActiveKey(pet, ...)
+        local active = PetState.getActive(pet)
+        if not active then
+            return false
+        end
+        for i = 1, select("#", ...) do
+            local key = tostring(select(i, ...)):lower()
+            if active[key] then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function resolveTeleportPart(target)
+        if not target then
+            return nil
+        end
+        if target:IsA("BasePart") then
+            return target
+        end
+        if target:IsA("Model") then
+            if target.PrimaryPart then
+                return target.PrimaryPart
+            end
+            return target:FindFirstChildWhichIsA("BasePart", true)
+        end
+        return target:FindFirstChildWhichIsA("BasePart", true)
+    end
+
+    local function findDescendantByNames(root, names)
+        if not root then
+            return nil
+        end
+        for _, name in ipairs(names) do
+            local found = root:FindFirstChild(name, true)
+            if found then
+                return found
+            end
+        end
+        return nil
+    end
+
+    local function teleportToSafePart(target)
+        local part = resolveTeleportPart(target)
+        if not part then
+            return false
+        end
+
+        local platform = Instance.new("Part")
+        platform.Name = "PetControllerSafeBaseplate"
+        platform.Anchored = true
+        platform.CanCollide = true
+        platform.Transparency = 1
+        platform.Size = Vector3.new(8, 1, 8)
+        platform.CFrame = part.CFrame * CFrame.new(0, -3, 0)
+        platform.Parent = workspace
+
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.CFrame = platform.CFrame * CFrame.new(0, 3, 0)
+        end
+
+        spawn(function()
+            wait(5)
+            if platform and platform.Parent then
+                platform:Destroy()
+            end
+        end)
+
+        return true
+    end
+
+    local function findCustomTeleportTarget(pet)
+        if PetState.isSchool(pet) or petHasActiveKey(pet, "school") then
+            -- prefer the WorkingParts TouchToEnter if available (two possible Interiors layouts)
+            local t1 = workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("School")
+                and workspace.Interiors.School:FindFirstChild("Doors")
+                and workspace.Interiors.School.Doors:FindFirstChild("MainDoor")
+                and workspace.Interiors.School.Doors.MainDoor:FindFirstChild("WorkingParts")
+                and workspace.Interiors.School.Doors.MainDoor.WorkingParts:FindFirstChild("TouchToEnter")
+            if t1 then return t1 end
+
+            local t2 = workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Default")
+                and workspace.Interiors["MainMap!Default"].Doors
+                and workspace.Interiors["MainMap!Default"].Doors:FindFirstChild("School/MainDoor")
+                and workspace.Interiors["MainMap!Default"].Doors["School/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Default"].Doors["School/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+            if t2 then return t2 end
+
+            -- fallback to the MainDoor model if no touch part exists
+            return workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("School")
+                and workspace.Interiors.School:FindFirstChild("Doors")
+                and workspace.Interiors.School.Doors:FindFirstChild("MainDoor")
+        end
+
+        if petHasActiveKey(pet, "salon") then
+            return workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Default")
+                and workspace.Interiors["MainMap!Default"].Doors
+                and workspace.Interiors["MainMap!Default"].Doors:FindFirstChild("Salon/MainDoor")
+                and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+        end
+
+        if petHasActiveKey(pet, "beach", "beach_party") then
+            local furniture = workspace:FindFirstChild("HouseInteriors")
+                and workspace.HouseInteriors:FindFirstChild("furniture")
+            local beachNode = furniture and furniture:FindFirstChild("nil/nil/MainMap!Default/false/f-28")
+            return beachNode and beachNode:FindFirstChild("Beach2024Log") or beachNode
+        end
+
+        if petHasActiveKey(pet, "camp", "camping", "sleeping_bag") then
+            local furniture = workspace:FindFirstChild("HouseInteriors")
+                and workspace.HouseInteriors:FindFirstChild("furniture")
+            local campNode = furniture and furniture:FindFirstChild("nil/nil/MainMap!Default/false/f-5")
+            return campNode and campNode:FindFirstChild("SleepingBag") or campNode
+        end
+
+        if petHasActiveKey(pet, "playground", "park", "roundabout", "bored") then
+            return workspace:FindFirstChild("StaticMap")
+                and workspace.StaticMap:FindFirstChild("Park")
+                and workspace.StaticMap.Park:FindFirstChild("Roundabout")
+                and workspace.StaticMap.Park.Roundabout:FindFirstChild("SeatsSpinModel")
+                and workspace.StaticMap.Park.Roundabout.SeatsSpinModel:FindFirstChild("Collisions")
+                and workspace.StaticMap.Park.Roundabout.SeatsSpinModel.Collisions:FindFirstChild("Collider")
+        end
+
+        return nil
+    end
+
+    local function getSpecialNeedName(pet)
+        if PetState.isSchool(pet) or petHasActiveKey(pet, "school") then
+            return "school"
+        end
+        if petHasActiveKey(pet, "salon") then
+            return "salon"
+        end
+        if petHasActiveKey(pet, "beach", "beach_party") then
+            return "beach"
+        end
+        if petHasActiveKey(pet, "camp", "camping", "sleeping_bag") then
+            return "camping"
+        end
+        if petHasActiveKey(pet, "playground", "park", "roundabout", "bored") then
+            return "playground"
+        end
+        return "special area"
+    end
+
+    local function getTeleportTarget(name)
+        if name == "beach" then
+            local furniture = workspace:FindFirstChild("HouseInteriors")
+                and workspace.HouseInteriors:FindFirstChild("furniture")
+            local beachNode = furniture and furniture:FindFirstChild("nil/nil/MainMap!Default/false/f-28")
+            if not beachNode then
+                return nil
+            end
+            return beachNode:FindFirstChild("Beach2024Log", true) or beachNode
+        elseif name == "school" then
+            -- prefer TouchToEnter working part when available
+            local t1 = workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("School")
+                and workspace.Interiors.School:FindFirstChild("Doors")
+                and workspace.Interiors.School.Doors:FindFirstChild("MainDoor")
+                and workspace.Interiors.School.Doors.MainDoor:FindFirstChild("WorkingParts")
+                and workspace.Interiors.School.Doors.MainDoor.WorkingParts:FindFirstChild("TouchToEnter")
+            if t1 then return t1 end
+
+            local t2 = workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Default")
+                and workspace.Interiors["MainMap!Default"].Doors
+                and workspace.Interiors["MainMap!Default"].Doors:FindFirstChild("School/MainDoor")
+                and workspace.Interiors["MainMap!Default"].Doors["School/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Default"].Doors["School/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+            if t2 then return t2 end
+
+            return workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("School")
+                and workspace.Interiors.School:FindFirstChild("Doors")
+                and workspace.Interiors.School.Doors:FindFirstChild("MainDoor")
+        elseif name == "camping" then
+            local furniture = workspace:FindFirstChild("HouseInteriors")
+                and workspace.HouseInteriors:FindFirstChild("furniture")
+            local campNode = furniture and furniture:FindFirstChild("nil/nil/MainMap!Default/false/f-5")
+            if not campNode then
+                return nil
+            end
+            return campNode:FindFirstChild("SleepingBag", true) or campNode
+        elseif name == "salon" then
+            return workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Default")
+                and workspace.Interiors["MainMap!Default"].Doors
+                and workspace.Interiors["MainMap!Default"].Doors:FindFirstChild("Salon/MainDoor")
+                and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+        elseif name == "playground" then
+            return workspace:FindFirstChild("StaticMap")
+                and workspace.StaticMap:FindFirstChild("Park")
+                and workspace.StaticMap.Park:FindFirstChild("Roundabout")
+                and workspace.StaticMap.Park.Roundabout:FindFirstChild("SeatsSpinModel")
+                and workspace.StaticMap.Park.Roundabout.SeatsSpinModel:FindFirstChild("Collisions")
+                and workspace.StaticMap.Park.Roundabout.SeatsSpinModel.Collisions:FindFirstChild("Collider")
+        end
+        return nil
+    end
+
+    local function exitHouseToMainArea()
+        -- Unsubscribe from house to load special areas
+        if UnsubscribeFromHouse then
+            pcall(function()
+                UnsubscribeFromHouse:InvokeServer(player, true)
+            end)
+        end
+        task.wait(2)
+
+        local char = player.Character
+        if not char then return false end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return false end
+
+        -- TP to main area (beach/camp loading point)
+        local targetCF = CFrame.new(2978.0874, 6534.81934, 12039.1875, 0.999999702, 0, 0.000776898232, 0, 1, 0, -0.000776898232, 0, 0.999999702)
+        char:PivotTo(targetCF)
+        
+        -- Wait for beach/camp furniture to load
+        task.wait(6)
+        return true
+    end
+
+    local function teleportForSpecialNeed(pet)
+        setStatus("TPing to " .. getSpecialNeedName(pet))
+
+        -- Exit house to load special areas
+        if not exitHouseToMainArea() then
+            setStatus("Failed to exit house")
+            return false
+        end
+
+        -- Find target AFTER exiting and waiting
+        local target = findCustomTeleportTarget(pet)
+        if not target then
+            setStatus("Special area target not found")
+            return false
+        end
+
+        -- If the target is a door touch part (TouchToEnter), fly to it instead of safe-plate teleport
+        local tpPart = resolveTeleportPart(target)
+        if tpPart and tpPart.Name == "TouchToEnter" then
+            local RunService = game:GetService("RunService")
+            local attempts = 3
+            for attempt = 1, attempts do
+                print("[ui] teleportForSpecialNeed: flying to TouchToEnter attempt", attempt)
+                local char = player.Character or player.CharacterAdded:Wait()
+                local hrp = char:WaitForChild("HumanoidRootPart")
+                local speed = 120
+                local stopDistance = 2
+                local conn
+                -- start above the door
+                char:PivotTo(hrp.CFrame + Vector3.new(0, 10, 0))
+                task.wait(0.5)
+                conn = RunService.Heartbeat:Connect(function(dt)
+                    if not hrp or not hrp.Parent then
+                        conn:Disconnect()
+                        return
+                    end
+                    if not tpPart or not tpPart.Parent then
+                        conn:Disconnect()
+                        return
+                    end
+                    local direction = (tpPart.Position - hrp.Position)
+                    local distance = direction.Magnitude
+                    if distance <= stopDistance then
+                        conn:Disconnect()
+                        return
+                    end
+                    direction = direction.Unit
+                    hrp.CFrame = hrp.CFrame + direction * speed * dt
+                end)
+
+                -- Wait up to 15s for the TouchToEnter to disappear (indicates the salon/school opened)
+                local start = os.clock()
+                local success = false
+                while os.clock() - start < 15 do
+                    if not tpPart or not tpPart.Parent then
+                        success = true
+                        break
+                    end
+                    task.wait(0.5)
+                end
+                if conn then
+                    pcall(function() conn:Disconnect() end)
+                end
+                if success then
+                    print("[ui] teleportForSpecialNeed: TouchToEnter disappeared — success")
+                    return true
+                else
+                    print("[ui] teleportForSpecialNeed: TouchToEnter still present after 15s, retrying")
+                    task.wait(1)
+                    -- refresh target reference in case the instance changed
+                    target = findCustomTeleportTarget(pet)
+                    tpPart = resolveTeleportPart(target)
+                end
+            end
+            return false
+        end
+
+        -- TP to furniture object
+        if teleportToSafePart(target) then
+            task.wait(1)
+            return true
+        end
+
+        setStatus("Teleport failed to special area")
+        return false
+    end
+
+    local function teleportToNamedTargetAsync(name)
+        setStatus("Loading " .. name .. " furniture")
+
+        -- Exit house to load special areas
+        print("[ui] teleportToNamedTargetAsync: exiting house to load", name)
+        if not exitHouseToMainArea() then
+            setStatus("Failed to exit house")
+            print("[ui] exitHouseToMainArea failed for", name)
+            return
+        end
+
+        -- Find target AFTER exiting and waiting
+        local target = getTeleportTarget(name)
+        print("[ui] getTeleportTarget returned:", target and target:GetFullName() or "nil")
+        if not target then
+            setStatus("TP target not found: " .. name)
+            return
+        end
+
+        -- If the target is a door touch part, fly to it and wait for it to disappear (max 15s), retry a few times
+        local tpPart = resolveTeleportPart(target)
+        if tpPart and tpPart.Name == "TouchToEnter" then
+            local RunService = game:GetService("RunService")
+            local attempts = 3
+            for attempt = 1, attempts do
+                print("[ui] teleportToNamedTargetAsync: flying to TouchToEnter for", name, "attempt", attempt)
+                setStatus("Flying to " .. name .. " door")
+                local char = player.Character or player.CharacterAdded:Wait()
+                local hrp = char:WaitForChild("HumanoidRootPart")
+                local speed = 120
+                local stopDistance = 2
+                local conn
+                char:PivotTo(hrp.CFrame + Vector3.new(0, 10, 0))
+                task.wait(0.5)
+                conn = RunService.Heartbeat:Connect(function(dt)
+                    if not hrp or not hrp.Parent then
+                        conn:Disconnect()
+                        return
+                    end
+                    if not tpPart or not tpPart.Parent then
+                        conn:Disconnect()
+                        return
+                    end
+                    local direction = (tpPart.Position - hrp.Position)
+                    local distance = direction.Magnitude
+                    if distance <= stopDistance then
+                        conn:Disconnect()
+                        return
+                    end
+                    direction = direction.Unit
+                    hrp.CFrame = hrp.CFrame + direction * speed * dt
+                end)
+
+                local start = os.clock()
+                local success = false
+                while os.clock() - start < 15 do
+                    if not tpPart or not tpPart.Parent then
+                        success = true
+                        break
+                    end
+                    task.wait(0.5)
+                end
+                if conn then pcall(function() conn:Disconnect() end) end
+                if success then
+                    setStatus("Arrived at " .. name .. " door")
+                    return
+                else
+                    print("[ui] teleportToNamedTargetAsync: TouchToEnter still present after 15s, retrying")
+                    task.wait(1)
+                    target = getTeleportTarget(name)
+                    tpPart = resolveTeleportPart(target)
+                end
+            end
+            setStatus("Failed to reach " .. name .. " door")
+            return
+        end
+
+        -- TP to furniture object
+        print("[ui] teleportToNamedTargetAsync: teleportToSafePart for", name)
+        if teleportToSafePart(target) then
+            task.wait(1)
+            setStatus("Teleported to " .. name)
+        else
+            setStatus("Teleport failed: " .. name)
+        end
+    end
+
     local function autofarm()
         if actionBusy then
             return
@@ -522,51 +1219,68 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         if not pet then
             return
         end
+        if not isHouseReady() then
+            setStatus("Enter house")
+            return
+        end
         refreshAilments()
 
         if PetState.isHungry(pet) then
-            if not Requirements.canHandleNeed("hungry") then
-                setStatus("Missing: Food Bowl")
-                return
-            end
             setStatus("Feeding")
-            useFurniture("food", pet)
+            local ok = false
+            for i=1,3 do
+                if useFurniture("food", pet) then ok = true break end
+                setStatus("Missing: Food Bowl — retrying ("..i..")")
+                task.wait(1)
+            end
+            if not ok then setStatus("Missing: Food Bowl") end
             return
         end
         if PetState.isThirsty(pet) then
-            if not Requirements.canHandleNeed("thirsty") then
-                setStatus("Missing: Water Bowl")
-                return
-            end
             setStatus("Drinking")
-            useFurniture("drink", pet)
+            local ok = false
+            for i=1,3 do
+                if useFurniture("drink", pet) then ok = true break end
+                setStatus("Missing: Water Bowl — retrying ("..i..")")
+                task.wait(1)
+            end
+            if not ok then setStatus("Missing: Water Bowl") end
             return
         end
         if PetState.isToilet(pet) then
-            if not Requirements.canHandleNeed("toilet") then
-                setStatus("Missing: Toilet")
-                return
-            end
             setStatus("Toilet")
-            useFurniture("toilet", pet)
+            local ok = false
+            for i=1,3 do
+                if useFurniture("toilet", pet) then ok = true break end
+                setStatus("Missing: Toilet — retrying ("..i..")")
+                task.wait(1)
+            end
+            if not ok then setStatus("Missing: Toilet") end
             return
         end
         if PetState.isDirty(pet) then
-            if not Requirements.canHandleNeed("dirty") then
-                setStatus("Missing: Shower")
-                return
-            end
             setStatus("Shower")
-            useFurniture("shower", pet)
+            local ok = false
+            for i=1,3 do
+                if useFurniture("shower", pet) then ok = true break end
+                setStatus("Missing: Shower — retrying ("..i..")")
+                task.wait(1)
+            end
+            if not ok then setStatus("Missing: Shower") end
             return
         end
         if PetState.isSleepy(pet) then
-            if not Requirements.canHandleNeed("sleepy") then
-                setStatus("Missing: Pet Bed")
-                return
-            end
             setStatus("Sleep")
-            useFurniture("bed", pet)
+            local ok = false
+            for i=1,3 do
+                if useFurniture("bed", pet) then ok = true break end
+                setStatus("Missing: Pet Bed — retrying ("..i..")")
+                task.wait(1)
+            end
+            if not ok then setStatus("Missing: Pet Bed") end
+            return
+        end
+        if teleportForSpecialNeed(pet) then
             return
         end
         if stillWalk(pet) then
@@ -592,12 +1306,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     PetDropdown = ControlsTab:CreateDropdown({
         Name = "Select Pet",
         Options = {"No pets available"},
-        CurrentOption = "No pets available",
+        CurrentOption = {"No pets available"},
         MultipleOptions = false,
         Flag = "PetDropdown",
         Callback = function(o)
-            local choice = type(o) == "table" and o[1] or o
-            selectedPetName = (choice ~= "No pets available") and choice or nil
+            selectedPetName = (o[1] ~= "No pets available") and o[1] or nil
             refreshAilments()
         end,
     })
@@ -703,42 +1416,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end,
     })
 
-    ControlsTab:CreateSection("Toys")
-    ControlsTab:CreateButton({
-        Name = "Refresh Toy (equip_manager)",
-        Callback = function()
-            refreshToyLabel()
-            if Toys.hasEquipToy and Toys.hasEquipToy() then
-                setStatus("squeaky_bone_default ready")
-            else
-                setStatus("Open toys menu to sync equip_manager")
-            end
-        end,
-    })
-    ControlsTab:CreateButton({
-        Name = "Play Toy",
-        Callback = function()
-            local p = getPet()
-            if p then
-                runAction(function()
-                    doPlay(p)
-                end)
-            end
-        end,
-    })
-    ControlsTab:CreateButton({
-        Name = "Throw Toy (test)",
-        Callback = function()
-            local p = getPet()
-            if not p then
-                setStatus("Select a pet first")
-                return
-            end
-            runAction(function()
-                doThrow(p, true)
-            end)
-        end,
-    })
     ControlsTab:CreateSection("Autofarm")
     ControlsTab:CreateToggle({
         Name = "Autofarm",
@@ -756,7 +1433,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                     autofarmLoop = task.spawn(function()
                         while autofarmEnabled do
                             pcall(autofarm)
-                            task.wait(actionBusy and 2 or 4)
+                            task.wait(2)
                         end
                         autofarmLoop = nil
                     end)
@@ -780,7 +1457,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     end
 
     refreshRequirements()
-    refreshToyLabel()
     refreshAilments()
     Rayfield:LoadConfiguration()
     pcall(function()
