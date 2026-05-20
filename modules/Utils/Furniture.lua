@@ -14,6 +14,27 @@ function Furniture.Init(player, ActivateFurniture, Helpers)
         end
     end
 
+    local function sendRemote(remote, ...)
+        if not remote then
+            return false, "remote missing"
+        end
+        local call
+        if type(remote.InvokeServer) == "function" then
+            call = function(...)
+                return remote:InvokeServer(...)
+            end
+        elseif type(remote.FireServer) == "function" then
+            call = function(...)
+                remote:FireServer(...)
+                return true
+            end
+        end
+        if not call then
+            return false, "remote has no InvokeServer or FireServer"
+        end
+        return pcall(call, ...)
+    end
+
     local function performFurnitureActivation(furnitureId, target, partName, actionLabel, pet)
         if not furnitureId or not target then
             return false, "No furniture found"
@@ -30,15 +51,14 @@ function Furniture.Init(player, ActivateFurniture, Helpers)
         print("DEBUG ACTION", actionLabel, "furnitureId=", furnitureId, "pet=", pet.Name)
         teleportToTarget(targetCFrame)
 
-        local ok, err = pcall(function()
-            ActivateFurniture:InvokeServer(
-                player,
-                furnitureId,
-                partName,
-                {cframe = targetCFrame},
-                pet
-            )
-        end)
+        local ok, err = sendRemote(
+            ActivateFurniture,
+            player,
+            furnitureId,
+            partName,
+            {cframe = targetCFrame},
+            pet
+        )
 
         if not ok then
             return false, err

@@ -208,6 +208,27 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return nil
     end
 
+    local function sendRemote(remote, ...)
+        if not remote then
+            return false, "remote missing"
+        end
+        local call
+        if type(remote.InvokeServer) == "function" then
+            call = function(...)
+                return remote:InvokeServer(...)
+            end
+        elseif type(remote.FireServer) == "function" then
+            call = function(...)
+                remote:FireServer(...)
+                return true
+            end
+        end
+        if not call then
+            return false, "remote has no InvokeServer or FireServer"
+        end
+        return pcall(call, ...)
+    end
+
     local function resolveCFrame(target, partName)
         if not target then
             return nil
@@ -266,9 +287,8 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             root.CFrame = cf * CFrame.new(0, 0, -5)
         end
 
-        return pcall(function()
-            ActivateFurniture:InvokeServer(player, id, partName, {cframe = cf}, pet)
-        end)
+        local ok, err = sendRemote(ActivateFurniture, player, id, partName, {cframe = cf}, pet)
+        return ok, err
     end
 
     local function getToyId()
@@ -572,11 +592,12 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     PetDropdown = ControlsTab:CreateDropdown({
         Name = "Select Pet",
         Options = {"No pets available"},
-        CurrentOption = {"No pets available"},
+        CurrentOption = "No pets available",
         MultipleOptions = false,
         Flag = "PetDropdown",
         Callback = function(o)
-            selectedPetName = (o[1] ~= "No pets available") and o[1] or nil
+            local choice = type(o) == "table" and o[1] or o
+            selectedPetName = (choice ~= "No pets available") and choice or nil
             refreshAilments()
         end,
     })

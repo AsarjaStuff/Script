@@ -15,6 +15,27 @@ local function lower(s)
     return tostring(s or ""):lower()
 end
 
+local function sendRemote(remote, ...)
+    if not remote then
+        return false, "remote missing"
+    end
+    local call
+    if type(remote.InvokeServer) == "function" then
+        call = function(...)
+            return remote:InvokeServer(...)
+        end
+    elseif type(remote.FireServer) == "function" then
+        call = function(...)
+            remote:FireServer(...)
+            return true
+        end
+    end
+    if not call then
+        return false, "remote has no InvokeServer or FireServer"
+    end
+    return pcall(call, ...)
+end
+
 local function isSqueakyBone(entry)
     if type(entry) ~= "table" then
         return false
@@ -86,12 +107,10 @@ function Toys.equip(Remotes, uniqueId)
     if not uniqueId then
         return false, "no toy in equip_manager"
     end
-    return pcall(function()
-        Remotes.ToolEquip:InvokeServer(uniqueId, {
-            use_sound_delay = true,
-            equip_as_last = false,
-        })
-    end)
+    return sendRemote(Remotes.ToolEquip, uniqueId, {
+        use_sound_delay = true,
+        equip_as_last = false,
+    })
 end
 
 function Toys.unequip(Remotes, uniqueId, fromThrow)
@@ -99,13 +118,10 @@ function Toys.unequip(Remotes, uniqueId, fromThrow)
     if not uniqueId then
         return false
     end
-    return pcall(function()
-        if fromThrow then
-            Remotes.ToolUnequip:InvokeServer(uniqueId, {from_throw_toy = true})
-        else
-            Remotes.ToolUnequip:InvokeServer(uniqueId, nil)
-        end
-    end)
+    if fromThrow then
+        return sendRemote(Remotes.ToolUnequip, uniqueId, {from_throw_toy = true})
+    end
+    return sendRemote(Remotes.ToolUnequip, uniqueId, nil)
 end
 
 function Toys.useStart(Remotes, uniqueId)
@@ -113,9 +129,7 @@ function Toys.useStart(Remotes, uniqueId)
     if not uniqueId then
         return false
     end
-    return pcall(function()
-        Remotes.ServerUseTool:InvokeServer(uniqueId, "START")
-    end)
+    return sendRemote(Remotes.ServerUseTool, uniqueId, "START")
 end
 
 function Toys.useEnd(Remotes, uniqueId)
@@ -123,9 +137,7 @@ function Toys.useEnd(Remotes, uniqueId)
     if not uniqueId then
         return false
     end
-    return pcall(function()
-        Remotes.ServerUseTool:InvokeServer(uniqueId, "END", nil)
-    end)
+    return sendRemote(Remotes.ServerUseTool, uniqueId, "END", nil)
 end
 
 -- Cobalt: PetObjectAPI/CreatePetObject + ThrowToyReaction + unique_id from equip_manager
@@ -134,12 +146,10 @@ function Toys.throwToy(Remotes, uniqueId)
     if not uniqueId then
         return false, "no toy in equip_manager"
     end
-    return pcall(function()
-        Remotes.CreatePetObject:InvokeServer("__Enum_PetObjectCreatorType_1", {
-            reaction_name = "ThrowToyReaction",
-            unique_id = uniqueId,
-        })
-    end)
+    return sendRemote(Remotes.CreatePetObject, "__Enum_PetObjectCreatorType_1", {
+        reaction_name = "ThrowToyReaction",
+        unique_id = uniqueId,
+    })
 end
 
 function Toys.throwOnce(Remotes, uniqueId)
@@ -246,9 +256,7 @@ function Toys.walkWithPet(player, HoldBaby, pet, stillNeedsFn)
     if not pet then
         return false
     end
-    pcall(function()
-        HoldBaby:FireServer(pet)
-    end)
+    sendRemote(HoldBaby, pet)
     task.wait(0.35)
 
     local char = player.Character
@@ -259,9 +267,7 @@ function Toys.walkWithPet(player, HoldBaby, pet, stillNeedsFn)
     local timeout = os.clock() + 70
     while stillNeedsFn() and os.clock() < timeout do
         walkBurst()
-        pcall(function()
-            HoldBaby:FireServer(pet)
-        end)
+        sendRemote(HoldBaby, pet)
         task.wait(0.12)
     end
 
