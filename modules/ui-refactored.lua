@@ -43,6 +43,10 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         return nil
     end
 
+    local function stillWalk(pet)
+        return PetStateApi.isWalk(pet)
+    end
+
     local function activateForPet(furnitureId, target, partName, label, pet)
         pet = pet or resolveSelectedPet()
         return furniture.performFurnitureActivation(furnitureId, target, partName, label, pet)
@@ -107,6 +111,12 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
             status.updateStatus("Pet is sleepy...")
             local furnitureId, seat = Sleep.FindBed()
             return activateForPet(furnitureId, seat, "Seat1", "bed", pet)
+        end
+
+        if PetStateApi.isWalk(pet) then
+            status.updateStatus("Pet needs a walk...")
+            Toys.walkWithPet(player, HoldBaby, pet, stillWalk)
+            return true
         end
 
         status.updateStatus("Pet doesn't need anything")
@@ -298,6 +308,18 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         if not furnitureId or not seat then status.updateStatus("No toilet found") return end
         local ok = activateForPet(furnitureId, seat, "Seat1", "toilet", pet)
         status.updateStatus(ok and (pet.Name .. " is using toilet") or "Toilet failed")
+    end})
+
+    tab:CreateButton({Name = "🚶 Walk Pet", Callback = function()
+        local pet = resolveSelectedPet()
+        if not pet then status.updateStatus("No pet selected") return end
+        if not stillWalk(pet) then
+            status.updateStatus("No walk need detected")
+            return
+        end
+        status.updateStatus("Walking pet")
+        local ok = Toys.walkWithPet(player, HoldBaby, pet, stillWalk)
+        status.updateStatus(ok and "Walk done" or "Walk failed")
     end})
 
     tab:CreateToggle({

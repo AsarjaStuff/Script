@@ -1435,6 +1435,23 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end,
     })
 
+    ControlsTab:CreateButton({
+        Name = "Walk",
+        Callback = function()
+            local p = getPet()
+            if not p then
+                return
+            end
+            if not stillWalk(p) then
+                setStatus("No walk need detected")
+                return
+            end
+            runAction(function()
+                doWalk(p)
+            end)
+        end,
+    })
+
     ControlsTab:CreateSection("Autofarm")
     ControlsTab:CreateToggle({
         Name = "Autofarm",
