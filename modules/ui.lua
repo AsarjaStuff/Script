@@ -294,13 +294,15 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
 
     local function invokeFurnitureRemote(playerArg, idArg, partNameArg, paramsArg, petArg)
         if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
-            return pcall(function()
-                ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
+            local ok, result = pcall(function()
+                return ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
             end)
+            return ok, result
         elseif ActivateFurniture and ActivateFurniture.ClassName == "RemoteFunction" then
-            return pcall(function()
-                ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
+            local ok, result = pcall(function()
+                return ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
             end)
+            return ok, result
         end
         return false, "ActivateFurniture remote missing"
     end
@@ -340,7 +342,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end
 
         local ok, err = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
-        if ok then
+        if ok and err ~= false then
             return true
         end
 
@@ -384,14 +386,15 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return nil
         end
 
-        local doorPart = findHouseDoorTouch()
-        -- Try a few times: sometimes HouseExteriors take a moment to populate after exitHouseToMainArea
         local doorPart = nil
-        for i = 1, 4 do
+        -- Try a few times: sometimes HouseExteriors take a moment to populate after exitHouseToMainArea
+        for i = 1, 5 do
             doorPart = findHouseDoorTouch()
-            if doorPart then break end
+            if doorPart then
+                break
+            end
             print("[ui] enterHouseViaDoor: TouchToEnter not found, retrying ("..i..")")
-            task.wait(1)
+            task.wait(0.75)
         end
         if not doorPart then
             print("[ui] enterHouseViaDoor: Door TouchToEnter not found after retries")
