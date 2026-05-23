@@ -819,13 +819,55 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return nil
     end
 
-    local function findNeighborhoodDesertDoor()
-        return workspace:FindFirstChild("Interiors")
-            and workspace.Interiors:FindFirstChild("Neighborhood!Desert")
-            and workspace.Interiors["Neighborhood!Desert"].Doors
-            and workspace.Interiors["Neighborhood!Desert"].Doors:FindFirstChild("MainDoor")
-            and workspace.Interiors["Neighborhood!Desert"].Doors.MainDoor:FindFirstChild("WorkingParts")
-            and workspace.Interiors["Neighborhood!Desert"].Doors.MainDoor.WorkingParts:FindFirstChild("TouchToEnter")
+    local function findHouseExitDoor()
+        local houseExteriors = workspace:FindFirstChild("HouseExteriors")
+        if not houseExteriors then
+            return nil
+        end
+        local one = houseExteriors:FindFirstChild("1")
+        if not one then
+            return nil
+        end
+        local micro = one:FindFirstChild("Micro")
+        if not micro then
+            return nil
+        end
+        local doors = micro:FindFirstChild("Doors")
+        if not doors then
+            return nil
+        end
+        local mainDoor = doors:FindFirstChild("MainDoor")
+        if not mainDoor then
+            return nil
+        end
+        local working = mainDoor:FindFirstChild("WorkingParts")
+        if not working then
+            return nil
+        end
+        local touch = working:FindFirstChild("TouchToEnter")
+        if touch and touch:IsA("BasePart") then
+            return touch
+        end
+        return nil
+    end
+
+    local function findInteriorTouchDoor()
+        local interiors = workspace:FindFirstChild("Interiors")
+        if not interiors then
+            return nil
+        end
+        for _, desc in ipairs(interiors:GetDescendants()) do
+            if desc.Name == "TouchToEnter" and desc:IsA("BasePart") then
+                local parent = desc.Parent
+                if parent and parent.Name == "WorkingParts" then
+                    local mainDoor = parent.Parent
+                    if mainDoor and mainDoor.Name == "MainDoor" then
+                        return desc
+                    end
+                end
+            end
+        end
+        return nil
     end
 
     local function flyToTouchToEnter(part)
@@ -880,19 +922,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             pcall(function() conn:Disconnect() end)
         end
         return true
-    end
-
-    local function loadOutdoorEntryDoor()
-        for i = 1, 3 do
-            local door = findNeighborhoodDesertDoor()
-            if door then
-                flyToTouchToEnter(door)
-                task.wait(3)
-                return true
-            end
-            task.wait(1)
-        end
-        return false
     end
 
     local function teleportToSafePart(target)
@@ -1094,13 +1123,16 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
-        -- First move to the outdoor desert door so the special-area stream can load
-        if not loadOutdoorEntryDoor() then
-            warn("[ui] teleportForSpecialNeed: Neighborhood desert door not found")
-        end
-
-        -- Find target AFTER exiting, loading the desert entrance, and waiting
+        -- Find target AFTER exiting and waiting for streamed areas to load
         local target = findCustomTeleportTarget(pet)
+        if not target then
+            -- Fall back to any interior door touch if special areas loaded dynamically
+            target = findInteriorTouchDoor()
+        end
+        if not target then
+            -- Fall back to the normal house exit door path
+            target = findHouseExitDoor()
+        end
         if not target then
             setStatus("Special area target not found")
             return false
@@ -1188,14 +1220,12 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return
         end
 
-        -- Load the outdoor entry door so the streamed special area can appear
-        if not loadOutdoorEntryDoor() then
-            warn("[ui] teleportToNamedTargetAsync: Neighborhood desert door not found")
-        end
-
-        -- Find target AFTER exiting, door load, and waiting
+        -- Find target AFTER exiting and waiting for streamed areas to load
         local target = getTeleportTarget(name)
-        print("[ui] getTeleportTarget returned:", target and target:GetFullName() or "nil")
+        if not target then
+            target = findInteriorTouchDoor() or findHouseExitDoor()
+        end
+        print("[ui] getTeleportTarget returned:", target and (pcall(function() return target:GetFullName() end) and target:GetFullName() or "anonymous") or "nil")
         if not target then
             setStatus("TP target not found: " .. name)
             return
