@@ -1002,6 +1002,14 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                 and workspace.Interiors["MainMap!Default"].Doors["School/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
             if t2 then return t2 end
 
+            local t3 = workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Rain")
+                and workspace.Interiors["MainMap!Rain"].Doors
+                and workspace.Interiors["MainMap!Rain"].Doors:FindFirstChild("School/MainDoor")
+                and workspace.Interiors["MainMap!Rain"].Doors["School/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Rain"].Doors["School/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+            if t3 then return t3 end
+
             -- fallback to the MainDoor model if no touch part exists
             return workspace:FindFirstChild("Interiors")
                 and workspace.Interiors:FindFirstChild("School")
@@ -1010,12 +1018,20 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end
 
         if petHasActiveKey(pet, "salon") then
-            return workspace:FindFirstChild("Interiors")
+            local t1 = workspace:FindFirstChild("Interiors")
                 and workspace.Interiors:FindFirstChild("MainMap!Default")
                 and workspace.Interiors["MainMap!Default"].Doors
                 and workspace.Interiors["MainMap!Default"].Doors:FindFirstChild("Salon/MainDoor")
                 and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"]:FindFirstChild("WorkingParts")
                 and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+            if t1 then return t1 end
+
+            return workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Rain")
+                and workspace.Interiors["MainMap!Rain"].Doors
+                and workspace.Interiors["MainMap!Rain"].Doors:FindFirstChild("Salon/MainDoor")
+                and workspace.Interiors["MainMap!Rain"].Doors["Salon/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Rain"].Doors["Salon/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
         end
 
         if petHasActiveKey(pet, "beach", "beach_party") then
@@ -1090,6 +1106,14 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                 and workspace.Interiors["MainMap!Default"].Doors["School/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
             if t2 then return t2 end
 
+            local t3 = workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Rain")
+                and workspace.Interiors["MainMap!Rain"].Doors
+                and workspace.Interiors["MainMap!Rain"].Doors:FindFirstChild("School/MainDoor")
+                and workspace.Interiors["MainMap!Rain"].Doors["School/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Rain"].Doors["School/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+            if t3 then return t3 end
+
             return workspace:FindFirstChild("Interiors")
                 and workspace.Interiors:FindFirstChild("School")
                 and workspace.Interiors.School:FindFirstChild("Doors")
@@ -1103,12 +1127,20 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             end
             return campNode:FindFirstChild("SleepingBag", true) or campNode
         elseif name == "salon" then
-            return workspace:FindFirstChild("Interiors")
+            local t1 = workspace:FindFirstChild("Interiors")
                 and workspace.Interiors:FindFirstChild("MainMap!Default")
                 and workspace.Interiors["MainMap!Default"].Doors
                 and workspace.Interiors["MainMap!Default"].Doors:FindFirstChild("Salon/MainDoor")
                 and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"]:FindFirstChild("WorkingParts")
                 and workspace.Interiors["MainMap!Default"].Doors["Salon/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
+            if t1 then return t1 end
+
+            return workspace:FindFirstChild("Interiors")
+                and workspace.Interiors:FindFirstChild("MainMap!Rain")
+                and workspace.Interiors["MainMap!Rain"].Doors
+                and workspace.Interiors["MainMap!Rain"].Doors:FindFirstChild("Salon/MainDoor")
+                and workspace.Interiors["MainMap!Rain"].Doors["Salon/MainDoor"]:FindFirstChild("WorkingParts")
+                and workspace.Interiors["MainMap!Rain"].Doors["Salon/MainDoor"].WorkingParts:FindFirstChild("TouchToEnter")
         elseif name == "playground" then
             return workspace:FindFirstChild("StaticMap")
                 and workspace.StaticMap:FindFirstChild("Park")
