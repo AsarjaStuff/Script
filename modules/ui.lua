@@ -338,7 +338,14 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         if not action or not pet then
             return false
         end
-        return invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+
+        local ok, err = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        if ok then
+            return true
+        end
+
+        warn("[ui] hardcoded furniture action failed for", actionKey, "— falling back to dynamic detection:", err)
+        return useFurniture(actionKey, pet)
     end
 
     local function enterHouseViaDoor()

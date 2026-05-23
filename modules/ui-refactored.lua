@@ -85,7 +85,8 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         if not action or not pet then
             return false
         end
-        return pcall(function()
+
+        local ok, err = pcall(function()
             if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
                 ActivateFurniture:FireServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
             elseif ActivateFurniture and ActivateFurniture.ClassName == "RemoteFunction" then
@@ -94,6 +95,29 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
                 error("ActivateFurniture remote missing")
             end
         end)
+
+        if ok then
+            return true
+        end
+
+        warn("[ui] hardcoded furniture action failed for", actionKey, "— falling back to dynamic detection:", err)
+        if actionKey == "food" then
+            local furnitureId, obj = Care.FindFood()
+            return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "food", pet)
+        elseif actionKey == "drink" then
+            local furnitureId, obj = Care.FindDrink()
+            return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "drink", pet)
+        elseif actionKey == "shower" then
+            local furnitureId, obj = Care.FindShower()
+            return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "shower", pet)
+        elseif actionKey == "toilet" then
+            local furnitureId, seat = Care.FindToilet()
+            return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "toilet", pet)
+        elseif actionKey == "bed" then
+            local furnitureId, seat = Sleep.FindBed()
+            return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "bed", pet)
+        end
+        return false
     end
 
     local function refreshSelectedPetStatus()
