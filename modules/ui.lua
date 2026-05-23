@@ -957,6 +957,32 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return true
     end
 
+    local function waitForTeleportAlignment(target, timeout)
+        if not target or not target.Parent then
+            return true
+        end
+
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then
+            return false
+        end
+
+        local startTime = os.clock()
+        while os.clock() - startTime < timeout do
+            if not target or not target.Parent then
+                return true
+            end
+            local distance = (target.Position - hrp.Position).Magnitude
+            if distance <= 6 then
+                return true
+            end
+            task.wait(0.25)
+        end
+
+        return false
+    end
+
     local function findCustomTeleportTarget(pet)
         if PetState.isSchool(pet) or petHasActiveKey(pet, "school") then
             -- prefer the WorkingParts TouchToEnter if available (two possible Interiors layouts)
@@ -1204,7 +1230,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
 
         -- TP to furniture object
         if teleportToSafePart(target) then
-            task.wait(1)
+            if target.Name == "Collider" then
+                waitForTeleportAlignment(target, 10)
+            else
+                task.wait(1)
+            end
             return true
         end
 
@@ -1295,7 +1325,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         -- TP to furniture object
         print("[ui] teleportToNamedTargetAsync: teleportToSafePart for", name)
         if teleportToSafePart(target) then
-            task.wait(1)
+            if name == "playground" then
+                waitForTeleportAlignment(target, 10)
+            else
+                task.wait(1)
+            end
             setStatus("Teleported to " .. name)
         else
             setStatus("Teleport failed: " .. name)
