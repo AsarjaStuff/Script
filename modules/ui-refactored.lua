@@ -100,7 +100,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
             return true
         end
 
-        warn("[ui] hardcoded furniture action failed for", actionKey, "— falling back to dynamic detection:", err)
+        warn("[ui] hardcoded furniture action failed for", actionKey, "— falling back to dynamic detection:", result)
         if actionKey == "food" then
             local furnitureId, obj = Care.FindFood()
             return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "food", pet)
