@@ -293,11 +293,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     end
 
     local function invokeFurnitureRemote(playerArg, idArg, partNameArg, paramsArg, petArg)
-        if type(ActivateFurniture.FireServer) == "function" then
+        if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
             return pcall(function()
                 ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
             end)
-        elseif type(ActivateFurniture.InvokeServer) == "function" then
+        elseif ActivateFurniture and ActivateFurniture.ClassName == "RemoteFunction" then
             return pcall(function()
                 ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
             end)
@@ -1468,23 +1468,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                 return
             end
             invokeHardcodedFurnitureAction("bed", p)
-        end,
-    })
-
-    ControlsTab:CreateButton({
-        Name = "Walk",
-        Callback = function()
-            local p = getPet()
-            if not p then
-                return
-            end
-            if not stillWalk(p) then
-                setStatus("No walk need detected")
-                return
-            end
-            runAction(function()
-                doWalk(p)
-            end)
         end,
     })
 

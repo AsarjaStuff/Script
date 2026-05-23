@@ -86,9 +86,9 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
             return false
         end
         return pcall(function()
-            if type(ActivateFurniture.FireServer) == "function" then
+            if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
                 ActivateFurniture:FireServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
-            elseif type(ActivateFurniture.InvokeServer) == "function" then
+            elseif ActivateFurniture and ActivateFurniture.ClassName == "RemoteFunction" then
                 ActivateFurniture:InvokeServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
             else
                 error("ActivateFurniture remote missing")
