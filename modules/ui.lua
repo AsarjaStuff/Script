@@ -1235,11 +1235,16 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                     hrp.CFrame = hrp.CFrame + direction * speed * dt
                 end)
 
-                -- Wait up to 15s for the TouchToEnter to disappear (indicates the salon/school opened)
+                -- Wait up to 15s for the TouchToEnter to disappear or for the player to arrive at the door
                 local start = os.clock()
                 local success = false
                 while os.clock() - start < 15 do
                     if not tpPart or not tpPart.Parent then
+                        success = true
+                        break
+                    end
+                    local distance = (tpPart.Position - hrp.Position).Magnitude
+                    if distance <= stopDistance then
                         success = true
                         break
                     end
@@ -1249,7 +1254,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                     pcall(function() conn:Disconnect() end)
                 end
                 if success then
-                    print("[ui] teleportForSpecialNeed: TouchToEnter disappeared — success")
+                    print("[ui] teleportForSpecialNeed: TouchToEnter completed — success")
                     return true
                 else
                     print("[ui] teleportForSpecialNeed: TouchToEnter still present after 15s, retrying")
@@ -1336,6 +1341,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                 local success = false
                 while os.clock() - start < 15 do
                     if not tpPart or not tpPart.Parent then
+                        success = true
+                        break
+                    end
+                    local distance = (tpPart.Position - hrp.Position).Magnitude
+                    if distance <= stopDistance then
                         success = true
                         break
                     end
