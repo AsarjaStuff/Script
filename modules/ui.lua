@@ -305,6 +305,42 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return false, "ActivateFurniture remote missing"
     end
 
+    local localFurnitureActions = {
+        food = {
+            id = "f-21",
+            partName = "UseBlock",
+            cframe = CFrame.new(-5979.0981445312, 4000.6198730469, -9018.005859375, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        },
+        drink = {
+            id = "f-24",
+            partName = "UseBlock",
+            cframe = CFrame.new(-5979.0966796875, 4000.6198730469, -9021.0029296875, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        },
+        shower = {
+            id = "f-16",
+            partName = "UseBlock",
+            cframe = CFrame.new(-5960.5434570312, 4000.7026367188, -9008.4345703125, -1, 0, 0, 0, 1, 0, 0, 0, -1),
+        },
+        toilet = {
+            id = "f-6",
+            partName = "Seat1",
+            cframe = CFrame.new(-5961.6484375, 4003.1552734375, -9012.5, 0, 0, 1, 0, 1, 0, -1, 0, 0),
+        },
+        bed = {
+            id = "f-26",
+            partName = "Seat1",
+            cframe = CFrame.new(-5987.7016601562, 4002.6306152344, -9029.9853515625, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        },
+    }
+
+    local function invokeHardcodedFurnitureAction(actionKey, pet)
+        local action = localFurnitureActions[actionKey]
+        if not action or not pet then
+            return false
+        end
+        return invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+    end
+
     local function enterHouseViaDoor()
         print("[ui] enterHouseViaDoor: attempting house exit + entry")
 
@@ -1244,7 +1280,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             setStatus("Feeding")
             local ok = false
             for i=1,3 do
-                if useFurniture("food", pet) then ok = true break end
+                if invokeHardcodedFurnitureAction("food", pet) then ok = true break end
                 setStatus("Missing: Food Bowl — retrying ("..i..")")
                 task.wait(1)
             end
@@ -1255,7 +1291,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             setStatus("Drinking")
             local ok = false
             for i=1,3 do
-                if useFurniture("drink", pet) then ok = true break end
+                if invokeHardcodedFurnitureAction("drink", pet) then ok = true break end
                 setStatus("Missing: Water Bowl — retrying ("..i..")")
                 task.wait(1)
             end
@@ -1266,7 +1302,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             setStatus("Toilet")
             local ok = false
             for i=1,3 do
-                if useFurniture("toilet", pet) then ok = true break end
+                if invokeHardcodedFurnitureAction("toilet", pet) then ok = true break end
                 setStatus("Missing: Toilet — retrying ("..i..")")
                 task.wait(1)
             end
@@ -1277,7 +1313,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             setStatus("Shower")
             local ok = false
             for i=1,3 do
-                if useFurniture("shower", pet) then ok = true break end
+                if invokeHardcodedFurnitureAction("shower", pet) then ok = true break end
                 setStatus("Missing: Shower — retrying ("..i..")")
                 task.wait(1)
             end
@@ -1288,7 +1324,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             setStatus("Sleep")
             local ok = false
             for i=1,3 do
-                if useFurniture("bed", pet) then ok = true break end
+                if invokeHardcodedFurnitureAction("bed", pet) then ok = true break end
                 setStatus("Missing: Pet Bed — retrying ("..i..")")
                 task.wait(1)
             end
@@ -1391,7 +1427,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             if not p then
                 return
             end
-            useFurniture("food", p)
+            invokeHardcodedFurnitureAction("food", p)
         end,
     })
     ControlsTab:CreateButton({
@@ -1401,7 +1437,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             if not p then
                 return
             end
-            useFurniture("drink", p)
+            invokeHardcodedFurnitureAction("drink", p)
         end,
     })
     ControlsTab:CreateButton({
@@ -1411,7 +1447,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             if not p then
                 return
             end
-            useFurniture("shower", p)
+            invokeHardcodedFurnitureAction("shower", p)
         end,
     })
     ControlsTab:CreateButton({
@@ -1421,7 +1457,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             if not p then
                 return
             end
-            useFurniture("toilet", p)
+            invokeHardcodedFurnitureAction("toilet", p)
         end,
     })
     ControlsTab:CreateButton({
@@ -1431,7 +1467,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             if not p then
                 return
             end
-            useFurniture("bed", p)
+            invokeHardcodedFurnitureAction("bed", p)
         end,
     })
 

@@ -52,6 +52,50 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         return furniture.performFurnitureActivation(furnitureId, target, partName, label, pet)
     end
 
+    local localFurnitureActions = {
+        food = {
+            id = "f-21",
+            partName = "UseBlock",
+            cframe = CFrame.new(-5979.0981445312, 4000.6198730469, -9018.005859375, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        },
+        drink = {
+            id = "f-24",
+            partName = "UseBlock",
+            cframe = CFrame.new(-5979.0966796875, 4000.6198730469, -9021.0029296875, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        },
+        shower = {
+            id = "f-16",
+            partName = "UseBlock",
+            cframe = CFrame.new(-5960.5434570312, 4000.7026367188, -9008.4345703125, -1, 0, 0, 0, 1, 0, 0, 0, -1),
+        },
+        toilet = {
+            id = "f-6",
+            partName = "Seat1",
+            cframe = CFrame.new(-5961.6484375, 4003.1552734375, -9012.5, 0, 0, 1, 0, 1, 0, -1, 0, 0),
+        },
+        bed = {
+            id = "f-26",
+            partName = "Seat1",
+            cframe = CFrame.new(-5987.7016601562, 4002.6306152344, -9029.9853515625, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        },
+    }
+
+    local function invokeHardcodedFurnitureAction(actionKey, pet)
+        local action = localFurnitureActions[actionKey]
+        if not action or not pet then
+            return false
+        end
+        return pcall(function()
+            if type(ActivateFurniture.FireServer) == "function" then
+                ActivateFurniture:FireServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
+            elseif type(ActivateFurniture.InvokeServer) == "function" then
+                ActivateFurniture:InvokeServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
+            else
+                error("ActivateFurniture remote missing")
+            end
+        end)
+    end
+
     local function refreshSelectedPetStatus()
         status.refreshSelectedPetStatus(resolveSelectedPet())
         ailmentsPanel.refresh()
@@ -89,28 +133,23 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
 
         if PetStateApi.isHungry(pet) then
             status.updateStatus("Pet is hungry...")
-            local furnitureId, obj = Care.FindFood()
-            return activateForPet(furnitureId, obj, "UseBlock", "food", pet)
+            return invokeHardcodedFurnitureAction("food", pet)
         end
         if PetStateApi.isThirsty(pet) then
             status.updateStatus("Pet is thirsty...")
-            local furnitureId, obj = Care.FindDrink()
-            return activateForPet(furnitureId, obj, "UseBlock", "drink", pet)
+            return invokeHardcodedFurnitureAction("drink", pet)
         end
         if PetStateApi.isToilet(pet) then
             status.updateStatus("Pet needs toilet...")
-            local furnitureId, seat = Care.FindToilet()
-            return activateForPet(furnitureId, seat, "Seat1", "toilet", pet)
+            return invokeHardcodedFurnitureAction("toilet", pet)
         end
         if PetStateApi.isDirty(pet) then
             status.updateStatus("Pet is dirty...")
-            local furnitureId, obj = Care.FindShower()
-            return activateForPet(furnitureId, obj, "UseBlock", "shower", pet)
+            return invokeHardcodedFurnitureAction("shower", pet)
         end
         if PetStateApi.isSleepy(pet) then
             status.updateStatus("Pet is sleepy...")
-            local furnitureId, seat = Sleep.FindBed()
-            return activateForPet(furnitureId, seat, "Seat1", "bed", pet)
+            return invokeHardcodedFurnitureAction("bed", pet)
         end
 
         if PetStateApi.isWalk(pet) then
@@ -268,45 +307,35 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
     tab:CreateButton({Name = "🛏️ Put Pet To Sleep", Callback = function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
-        local furnitureId, seat = Sleep.FindBed()
-        if not furnitureId or not seat then status.updateStatus("No bed found") return end
-        local ok = activateForPet(furnitureId, seat, "Seat1", "bed", pet)
+        local ok = invokeHardcodedFurnitureAction("bed", pet)
         status.updateStatus(ok and (pet.Name .. " is sleeping") or "Sleep failed")
     end})
 
     tab:CreateButton({Name = "🍎 Feed Pet", Callback = function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
-        local furnitureId, obj = Care.FindFood()
-        if not furnitureId or not obj then status.updateStatus("No food found") return end
-        local ok = activateForPet(furnitureId, obj, "UseBlock", "food", pet)
+        local ok = invokeHardcodedFurnitureAction("food", pet)
         status.updateStatus(ok and (pet.Name .. " is eating") or "Feed failed")
     end})
 
     tab:CreateButton({Name = "🥤 Give Pet Drink", Callback = function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
-        local furnitureId, obj = Care.FindDrink()
-        if not furnitureId or not obj then status.updateStatus("No drink found") return end
-        local ok = activateForPet(furnitureId, obj, "UseBlock", "drink", pet)
+        local ok = invokeHardcodedFurnitureAction("drink", pet)
         status.updateStatus(ok and (pet.Name .. " is drinking") or "Drink failed")
     end})
 
     tab:CreateButton({Name = "🚿 Shower Pet", Callback = function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
-        local furnitureId, obj = Care.FindShower()
-        if not furnitureId or not obj then status.updateStatus("No shower found") return end
-        local ok = activateForPet(furnitureId, obj, "UseBlock", "shower", pet)
+        local ok = invokeHardcodedFurnitureAction("shower", pet)
         status.updateStatus(ok and (pet.Name .. " is showering") or "Shower failed")
     end})
 
     tab:CreateButton({Name = "🚽 Toilet", Callback = function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
-        local furnitureId, seat = Care.FindToilet()
-        if not furnitureId or not seat then status.updateStatus("No toilet found") return end
-        local ok = activateForPet(furnitureId, seat, "Seat1", "toilet", pet)
+        local ok = invokeHardcodedFurnitureAction("toilet", pet)
         status.updateStatus(ok and (pet.Name .. " is using toilet") or "Toilet failed")
     end})
 
