@@ -42,42 +42,23 @@ local function resolveTarget(obj)
 end
 
 local function findUseBlockByKeyword(keywords)
-    local root = workspace:FindFirstChild("HouseInteriors")
-    if not root then
-        return nil, nil
-    end
-    for _,obj in pairs(root:GetDescendants()) do
-        local furnitureId = getFurnitureId(obj)
-        if furnitureId then
-            local text = getAncestorText(obj)
-            for _,keyword in ipairs(keywords) do
-                if text:find(keyword, 1, true) then
-                    local target = resolveTarget(obj)
-                    if target then
-                        print("DEBUG: matched keyword", keyword, "for", obj:GetFullName())
-                        return furnitureId, target
-                    end
-                end
-            end
-        end
-    end
     return nil, nil
 end
 
 function Care.FindFood()
-    return findUseBlockByKeyword({"food", "PetFoodBowl", "kitchen", "meal", "dish", "snack", "feeder", "hungry"})
+    return nil, nil
 end
 
 function Care.FindDrink()
-    return findUseBlockByKeyword({"PetWaterBowl", "water", "fountain", "tap", "bottle", "hydration", "thirst"})
+    return nil, nil
 end
 
 function Care.FindShower()
-    return findUseBlockByKeyword({"shower", "bath", "wash", "shower", "ModernShower", "CheapPetBathtub"})
+    return nil, nil
 end
 
 function Care.FindToilet()
-    return findUseBlockByKeyword({"toilet", "restroom", "bathroom", "wc"})
+    return nil, nil
 end
 
 return Care
