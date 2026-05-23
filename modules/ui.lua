@@ -293,16 +293,19 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     end
 
     local function invokeFurnitureRemote(playerArg, idArg, partNameArg, paramsArg, petArg)
-        if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
-            local ok, result = pcall(function()
-                return ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
-            end)
-            return ok, result
-        elseif ActivateFurniture and ActivateFurniture.ClassName == "RemoteFunction" then
-            local ok, result = pcall(function()
-                return ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
-            end)
-            return ok, result
+        if ActivateFurniture then
+            if type(ActivateFurniture.InvokeServer) == "function" then
+                local ok, result = pcall(function()
+                    return ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
+                end)
+                return ok, result
+            elseif type(ActivateFurniture.FireServer) == "function" then
+                local ok, result = pcall(function()
+                    ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
+                    return true
+                end)
+                return ok, result
+            end
         end
         return false, "ActivateFurniture remote missing"
     end
