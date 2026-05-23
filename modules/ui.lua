@@ -1083,11 +1083,10 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         if name == "beach" then
             local furniture = workspace:FindFirstChild("HouseInteriors")
                 and workspace.HouseInteriors:FindFirstChild("furniture")
-            local beachNode = furniture and furniture:FindFirstChild("nil/nil/MainMap!Default/false/f-28")
-            if not beachNode then
+            if not furniture then
                 return nil
             end
-            return beachNode:FindFirstChild("Beach2024Log", true) or beachNode
+            return furniture:FindFirstChild("Beach2024Log", true)
         elseif name == "school" then
             -- prefer TouchToEnter working part when available
             local t1 = workspace:FindFirstChild("Interiors")
