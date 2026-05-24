@@ -353,20 +353,40 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         if petArg then
             attachPetToHead(petArg)
         end
-        if ActivateFurniture then
-            if type(ActivateFurniture.InvokeServer) == "function" then
-                local ok, result = pcall(function()
-                    return ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
-                end)
-                return ok, result
-            elseif type(ActivateFurniture.FireServer) == "function" then
-                local ok, result = pcall(function()
-                    ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
-                    return true
-                end)
-                return ok, result
-            end
+        if not ActivateFurniture then
+            warn("[ui] invokeFurnitureRemote: ActivateFurniture remote missing")
+            return false, "ActivateFurniture remote missing"
         end
+
+        local remoteType = "unknown"
+        if type(ActivateFurniture.InvokeServer) == "function" then
+            remoteType = "RemoteFunction"
+        elseif type(ActivateFurniture.FireServer) == "function" then
+            remoteType = "RemoteEvent"
+        end
+        print("[ui] invokeFurnitureRemote:", remoteType, idArg, partNameArg, petArg and petArg.Name or "nil")
+
+        if remoteType == "RemoteFunction" then
+            local ok, result = pcall(function()
+                return ActivateFurniture:InvokeServer(playerArg, idArg, partNameArg, paramsArg, petArg)
+            end)
+            if not ok then
+                warn("[ui] invokeFurnitureRemote error:", result)
+                return false, result
+            end
+            return true, result
+        elseif remoteType == "RemoteEvent" then
+            local ok, result = pcall(function()
+                ActivateFurniture:FireServer(playerArg, idArg, partNameArg, paramsArg, petArg)
+            end)
+            if not ok then
+                warn("[ui] invokeFurnitureRemote error:", result)
+                return false, result
+            end
+            return true, true
+        end
+
+        warn("[ui] invokeFurnitureRemote: ActivateFurniture remote does not expose InvokeServer or FireServer")
         return false, "ActivateFurniture remote missing"
     end
 
@@ -404,10 +424,9 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
-        attachPetToHead(pet)
         local ok, result = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
-        if ok and result ~= false then
-            return true
+        if ok then
+            return result ~= false
         end
 
         warn("[ui] hardcoded furniture action failed for", actionKey, ":", result)
@@ -1437,10 +1456,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end
         local pet = getPet()
         if not pet then
-            return
-        end
-        if not checkHouseReady() then
-            setStatus("Enter house")
             return
         end
         refreshAilments()
