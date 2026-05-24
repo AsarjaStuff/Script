@@ -92,7 +92,7 @@ function Furniture.Init(player, ActivateFurniture, Helpers)
         return pcall(call, ...)
     end
 
-    local function performFurnitureActivation(furnitureId, target, partName, actionLabel, pet)
+    local function performFurnitureActivation(furnitureId, target, partName, actionLabel, pet, attachPet)
         if not furnitureId or not target then
             return false, "No furniture found"
         end
@@ -106,7 +106,10 @@ function Furniture.Init(player, ActivateFurniture, Helpers)
         end
 
         print("DEBUG ACTION", actionLabel, "furnitureId=", furnitureId, "pet=", pet.Name)
-        attachPetToHead(pet)
+        local attached = false
+        if attachPet then
+            attached = attachPetToHead(pet)
+        end
 
         local ok, err = sendRemote(
             ActivateFurniture,
@@ -116,6 +119,13 @@ function Furniture.Init(player, ActivateFurniture, Helpers)
             {cframe = targetCFrame},
             pet
         )
+
+        if attached then
+            local weld = pet:FindFirstChild("PetActionHeadWeld", true)
+            if weld and weld:IsA("WeldConstraint") then
+                weld:Destroy()
+            end
+        end
 
         if not ok then
             return false, err
