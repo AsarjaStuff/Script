@@ -831,6 +831,71 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         setStatus("Play finished")
     end
 
+    local RunService = game:GetService("RunService")
+    local walkRenderConn = nil
+
+    local function stopWalkMovement()
+        if walkRenderConn then
+            walkRenderConn:Disconnect()
+            walkRenderConn = nil
+        end
+    end
+
+    local function startWalkMovement()
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid then
+            return false
+        end
+        stopWalkMovement()
+        walkRenderConn = RunService.RenderStepped:Connect(function()
+            if not humanoid or not humanoid.Parent then
+                return
+            end
+            local moveDir = Vector3.new(
+                math.random(-1, 1),
+                0,
+                math.random(-1, 1)
+            )
+            humanoid:Move(moveDir, true)
+        end)
+        return true
+    end
+
+    local function doWalk(pet)
+        if not pet then
+            return
+        end
+        if not HoldBaby or type(HoldBaby.FireServer) ~= "function" then
+            setStatus("Missing hold pet remote")
+            return
+        end
+
+        setStatus("Walking pet")
+        pcall(function()
+            HoldBaby:FireServer(pet)
+        end)
+
+        if not startWalkMovement() then
+            setStatus("Walk movement failed")
+            stopWalkMovement()
+            return
+        end
+
+        local timeout = os.clock() + 80
+        while stillWalk(pet) and os.clock() < timeout do
+            task.wait(0.2)
+        end
+
+        stopWalkMovement()
+        if EjectBaby and type(EjectBaby.FireServer) == "function" then
+            pcall(function()
+                EjectBaby:FireServer(pet)
+            end)
+        end
+        setStatus("Walk done")
+    end
+
     -- manual test: one throw; autofarm uses throwThreeTimes
     local function doThrow(pet, forTest)
         local uid = resolveToyOrWarn()
@@ -852,14 +917,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return stillPlay(pet)
         end)
         setStatus("Throw finished")
-    end
-
-    local function doWalk(pet)
-        setStatus("Walking pet")
-        Toys.walkWithPet(player, HoldBaby, pet, function()
-            return stillWalk(pet)
-        end)
-        setStatus("Walk done")
     end
 
     local function petHasActiveKey(pet, ...)
@@ -1016,6 +1073,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
+        local existing = workspace:FindFirstChild("PetControllerSafeBaseplate")
+        if existing then
+            existing:Destroy()
+        end
+
         local platform = Instance.new("Part")
         platform.Name = "PetControllerSafeBaseplate"
         platform.Anchored = true
@@ -1030,8 +1092,8 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             root.CFrame = platform.CFrame * CFrame.new(0, 3, 0)
         end
 
-        spawn(function()
-            wait(5)
+        task.spawn(function()
+            task.wait(5)
             if platform and platform.Parent then
                 platform:Destroy()
             end
@@ -1316,10 +1378,20 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                 end)
 
                 -- Wait up to 15s for the TouchToEnter to disappear (indicates the salon/school opened)
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.Jump = true
+                end
+
                 local start = os.clock()
                 local success = false
                 while os.clock() - start < 15 do
                     if not tpPart or not tpPart.Parent then
+                        success = true
+                        break
+                    end
+                    local distance = (tpPart.Position - hrp.Position).Magnitude
+                    if distance <= stopDistance then
                         success = true
                         break
                     end
@@ -1329,7 +1401,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                     pcall(function() conn:Disconnect() end)
                 end
                 if success then
-                    print("[ui] teleportForSpecialNeed: TouchToEnter disappeared — success")
+                    print("[ui] teleportForSpecialNeed: TouchToEnter success")
                     return true
                 else
                     print("[ui] teleportForSpecialNeed: TouchToEnter still present after 15s, retrying")
@@ -1392,7 +1464,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                 local stopDistance = 2
                 local conn
                 char:PivotTo(hrp.CFrame + Vector3.new(0, 10, 0))
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
                 task.wait(0.5)
+                if humanoid then
+                    humanoid.Jump = true
+                end
                 conn = RunService.Heartbeat:Connect(function(dt)
                     if not hrp or not hrp.Parent then
                         conn:Disconnect()
@@ -1416,6 +1492,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
                 local success = false
                 while os.clock() - start < 15 do
                     if not tpPart or not tpPart.Parent then
+                        success = true
+                        break
+                    end
+                    local distance = (tpPart.Position - hrp.Position).Magnitude
+                    if distance <= stopDistance then
                         success = true
                         break
                     end
