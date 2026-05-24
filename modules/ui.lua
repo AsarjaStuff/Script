@@ -292,7 +292,67 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return bp and bp.CFrame
     end
 
+    local function getPetRootPart(pet)
+        if not pet or type(pet) ~= "userdata" then
+            return nil
+        end
+        if pet.PrimaryPart and pet.PrimaryPart:IsA("BasePart") then
+            return pet.PrimaryPart
+        end
+        return pet:FindFirstChild("HumanoidRootPart") or pet:FindFirstChild("Head") or pet:FindFirstChildWhichIsA("BasePart")
+    end
+
+    local function attachPetToHead(pet)
+        if not pet or type(pet) ~= "userdata" then
+            return false
+        end
+        local char = player.Character
+        if not char then
+            return false
+        end
+        local head = char:FindFirstChild("Head")
+        if not head or not head:IsA("BasePart") then
+            head = char:FindFirstChild("HumanoidRootPart")
+        end
+        if not head then
+            return false
+        end
+
+        local petPart = getPetRootPart(pet)
+        if not petPart or not petPart:IsA("BasePart") then
+            return false
+        end
+        if petPart == head then
+            return false
+        end
+
+        local existing = petPart:FindFirstChild("PetActionHeadWeld")
+        if existing then
+            existing:Destroy()
+        end
+
+        for _, desc in ipairs(pet:GetDescendants()) do
+            if desc:IsA("BasePart") then
+                desc.Anchored = false
+                desc.CanCollide = false
+            end
+        end
+
+        petPart.CFrame = head.CFrame * CFrame.new(0, 1.5, 0)
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Name = "PetActionHeadWeld"
+        weld.Part0 = petPart
+        weld.Part1 = head
+        weld.Parent = petPart
+
+        return true
+    end
+
     local function invokeFurnitureRemote(playerArg, idArg, partNameArg, paramsArg, petArg)
+        if petArg then
+            attachPetToHead(petArg)
+        end
         if ActivateFurniture then
             if type(ActivateFurniture.InvokeServer) == "function" then
                 local ok, result = pcall(function()
@@ -344,6 +404,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
+        attachPetToHead(pet)
         local ok, result = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
         if ok and result ~= false then
             return true
