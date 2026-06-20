@@ -26,7 +26,11 @@ local function loadModule(paths)
             else
                 local okRun, result = pcall(fn)
                 if okRun then
-                    return result
+                    if result == nil then
+                        warn("  skip (module returned nil):", name)
+                    else
+                        return result
+                    end
                 else
                     warn("  skip (runtime):", name, result)
                 end
