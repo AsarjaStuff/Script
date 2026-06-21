@@ -394,27 +394,27 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
 
     local localFurnitureActions = {
         food = {
-            id = "f-21",
+            id = "f-2",
             partName = "UseBlock",
             cframe = CFrame.new(-5979.0981445312, 4000.6198730469, -9018.005859375, 0, 0, -1, 0, 1, 0, 1, 0, 0),
         },
         drink = {
-            id = "f-24",
+            id = "f-16",
             partName = "UseBlock",
             cframe = CFrame.new(-5979.0966796875, 4000.6198730469, -9021.0029296875, 0, 0, -1, 0, 1, 0, 1, 0, 0),
         },
         shower = {
-            id = "f-16",
+            id = "f-3",
             partName = "UseBlock",
             cframe = CFrame.new(-5960.5434570312, 4000.7026367188, -9008.4345703125, -1, 0, 0, 0, 1, 0, 0, 0, -1),
         },
         toilet = {
-            id = "f-6",
+            id = "f-20",
             partName = "Seat1",
             cframe = CFrame.new(-5961.6484375, 4003.1552734375, -9012.5, 0, 0, 1, 0, 1, 0, -1, 0, 0),
         },
         bed = {
-            id = "f-26",
+            id = "f-7",
             partName = "Seat1",
             cframe = CFrame.new(-5987.7016601562, 4002.6306152344, -9029.9853515625, 0, 0, -1, 0, 1, 0, 1, 0, 0),
         },
@@ -426,12 +426,18 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
-        local ok, result = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        local ok = useFurniture(actionKey, pet)
         if ok then
-            return result ~= false
+            return true
         end
 
-        warn("[ui] hardcoded furniture action failed for", actionKey, ":", result)
+        warn("[ui] dynamic furniture lookup failed for", actionKey, "— falling back to static furniture action")
+        local ok2, result2 = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        if ok2 and result2 ~= false then
+            return true
+        end
+
+        warn("[ui] hardcoded furniture action failed for", actionKey, ":", result2)
         return false
     end
 
