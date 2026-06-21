@@ -384,35 +384,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         },
     }
 
-    local function invokeHardcodedFurnitureAction(actionKey, pet)
-        local action = localFurnitureActions[actionKey]
-        if not action or not pet then
-            return false
-        end
-
-        local ok, result = pcall(function()
-            return useFurniture(actionKey, pet)
-        end)
-        if ok and result then
-            return true
-        end
-        if not ok then
-            warn("[ui] useFurniture error for", actionKey, result)
-        else
-            warn("[ui] dynamic furniture lookup failed for", actionKey, "— falling back to static furniture action")
-        end
-
-        local ok2, result2 = pcall(function()
-            return invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
-        end)
-        if ok2 and result2 ~= false then
-            return true
-        end
-
-        warn("[ui] hardcoded furniture action failed for", actionKey, ":", result2)
-        return false
-    end
-
     local function useFurniture(needType, pet)
         pet = pet or getPet()
         if not pet then
@@ -465,6 +436,39 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         end
 
         return invokeFurnitureRemote(player, id, partName, {cframe = cf}, pet)
+    end
+
+    local function invokeHardcodedFurnitureAction(actionKey, pet)
+        local action = localFurnitureActions[actionKey]
+        if not action or not pet then
+            return false
+        end
+
+        if type(useFurniture) ~= "function" then
+            warn("[ui] invokeHardcodedFurnitureAction: useFurniture is missing")
+        else
+            local ok, result = pcall(function()
+                return useFurniture(actionKey, pet)
+            end)
+            if ok and result then
+                return true
+            end
+            if not ok then
+                warn("[ui] useFurniture error for", actionKey, result)
+            else
+                warn("[ui] dynamic furniture lookup failed for", actionKey, "— falling back to static furniture action")
+            end
+        end
+
+        local ok2, result2 = pcall(function()
+            return invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        end)
+        if ok2 and result2 ~= false then
+            return true
+        end
+
+        warn("[ui] hardcoded furniture action failed for", actionKey, ":", result2)
+        return false
     end
 
     local ToyIdLabel = nil
