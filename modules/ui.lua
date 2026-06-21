@@ -426,13 +426,21 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
-        local ok = useFurniture(actionKey, pet)
-        if ok then
+        local ok, result = pcall(function()
+            return useFurniture(actionKey, pet)
+        end)
+        if ok and result then
             return true
         end
+        if not ok then
+            warn("[ui] useFurniture error for", actionKey, result)
+        else
+            warn("[ui] dynamic furniture lookup failed for", actionKey, "— falling back to static furniture action")
+        end
 
-        warn("[ui] dynamic furniture lookup failed for", actionKey, "— falling back to static furniture action")
-        local ok2, result2 = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        local ok2, result2 = pcall(function()
+            return invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        end)
         if ok2 and result2 ~= false then
             return true
         end

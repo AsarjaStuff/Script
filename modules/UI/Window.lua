@@ -35,10 +35,22 @@ function Window.Init(Rayfield)
         return tab:CreateLabel(text)
     end
 
+    local function wrapCallback(fn)
+        if type(fn) ~= "function" then
+            return fn
+        end
+        return function(...)
+            local ok, err = pcall(fn, ...)
+            if not ok then
+                warn("[UI] element callback error:", err)
+            end
+        end
+    end
+
     local function createButton(tab, name, callback)
         return tab:CreateButton({
             Name = name,
-            Callback = callback
+            Callback = wrapCallback(callback)
         })
     end
 
@@ -47,7 +59,7 @@ function Window.Init(Rayfield)
             Name = name,
             CurrentValue = defaultValue,
             Flag = flag,
-            Callback = callback
+            Callback = wrapCallback(callback)
         })
     end
 
@@ -58,7 +70,7 @@ function Window.Init(Rayfield)
             CurrentOption = options[1] or "No options",
             MultipleOptions = false,
             Flag = flag,
-            Callback = callback
+            Callback = wrapCallback(callback)
         })
     end
 

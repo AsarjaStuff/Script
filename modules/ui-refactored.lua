@@ -32,6 +32,18 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
     local autofarmLoop = nil
     local autofarmThrottle = setmetatable({}, {__mode = "k"})
 
+    local function wrapCallback(fn)
+        if type(fn) ~= "function" then
+            return fn
+        end
+        return function(...)
+            local ok, err = pcall(fn, ...)
+            if not ok then
+                warn("[ui-refactored] callback error:", err)
+            end
+        end
+    end
+
     local function resolveSelectedPet()
         if not selectedPetName then
             return nil
@@ -101,23 +113,32 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         end
 
         warn("[ui] hardcoded furniture action failed for", actionKey, "— falling back to dynamic detection:", result)
-        if actionKey == "food" then
-            local furnitureId, obj = Care.FindFood()
-            return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "food", pet)
-        elseif actionKey == "drink" then
-            local furnitureId, obj = Care.FindDrink()
-            return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "drink", pet)
-        elseif actionKey == "shower" then
-            local furnitureId, obj = Care.FindShower()
-            return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "shower", pet)
-        elseif actionKey == "toilet" then
-            local furnitureId, seat = Care.FindToilet()
-            return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "toilet", pet)
-        elseif actionKey == "bed" then
-            local furnitureId, seat = Sleep.FindBed()
-            return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "bed", pet)
+        local fallbackOk, fallbackResult = pcall(function()
+            if actionKey == "food" then
+                local furnitureId, obj = Care.FindFood()
+                return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "food", pet)
+            elseif actionKey == "drink" then
+                local furnitureId, obj = Care.FindDrink()
+                return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "drink", pet)
+            elseif actionKey == "shower" then
+                local furnitureId, obj = Care.FindShower()
+                return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "shower", pet)
+            elseif actionKey == "toilet" then
+                local furnitureId, seat = Care.FindToilet()
+                return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "toilet", pet)
+            elseif actionKey == "bed" then
+                local furnitureId, seat = Sleep.FindBed()
+                return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "bed", pet)
+            end
+            return false
+        end)
+
+        if not fallbackOk then
+            warn("[ui] fallback furniture action error for", actionKey, fallbackResult)
+            return false
         end
-        return false
+
+        return fallbackResult
     end
 
     local function refreshSelectedPetStatus()
@@ -269,7 +290,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         CurrentOption = "No pets available",
         MultipleOptions = false,
         Flag = "PetDropdown",
-        Callback = function(options)
+        Callback = wrapCallback(function(options)
             local name = options
             if type(options) == "table" then
                 name = options[1]
@@ -289,10 +310,10 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
                 status.updateStatus("Pet not found")
             end
             refreshSelectedPetStatus()
-        end,
+        end),
     })
 
-    tab:CreateButton({Name = "🔍 Debug Pet Needs", Callback = function()
+    tab:CreateButton({Name = "🔍 Debug Pet Needs", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then
             status.updateStatus("No pet selected")
@@ -301,69 +322,69 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         PetStateApi.debugPetNeeds(pet, "manual")
         refreshSelectedPetStatus()
         status.updateStatus("Printed needs to console (F9)")
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🔄 Refresh Pets", Callback = function()
+    tab:CreateButton({Name = "🔄 Refresh Pets", Callback = wrapCallback(function()
         refreshPets()
-    end})
+    end)})
 
-    tab:CreateButton({Name = "❌ Clear Selection", Callback = function()
+    tab:CreateButton({Name = "❌ Clear Selection", Callback = wrapCallback(function()
         selectedPetName = nil
         PetDropdown:Set("No pets available")
         status.updateStatus("Selection cleared")
         refreshSelectedPetStatus()
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🍼 Hold Pet", Callback = function()
+    tab:CreateButton({Name = "🍼 Hold Pet", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         pcall(function() HoldBaby:FireServer(pet) end)
         status.updateStatus("Holding " .. pet.Name)
-    end})
+    end)})
 
-    tab:CreateButton({Name = "⬇️ Drop Pet", Callback = function()
+    tab:CreateButton({Name = "⬇️ Drop Pet", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         pcall(function() EjectBaby:FireServer(pet) end)
         status.updateStatus("Dropped " .. pet.Name)
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🛏️ Put Pet To Sleep", Callback = function()
+    tab:CreateButton({Name = "🛏️ Put Pet To Sleep", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         local ok = invokeHardcodedFurnitureAction("bed", pet)
         status.updateStatus(ok and (pet.Name .. " is sleeping") or "Sleep failed")
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🍎 Feed Pet", Callback = function()
+    tab:CreateButton({Name = "🍎 Feed Pet", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         local ok = invokeHardcodedFurnitureAction("food", pet)
         status.updateStatus(ok and (pet.Name .. " is eating") or "Feed failed")
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🥤 Give Pet Drink", Callback = function()
+    tab:CreateButton({Name = "🥤 Give Pet Drink", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         local ok = invokeHardcodedFurnitureAction("drink", pet)
         status.updateStatus(ok and (pet.Name .. " is drinking") or "Drink failed")
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🚿 Shower Pet", Callback = function()
+    tab:CreateButton({Name = "🚿 Shower Pet", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         local ok = invokeHardcodedFurnitureAction("shower", pet)
         status.updateStatus(ok and (pet.Name .. " is showering") or "Shower failed")
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🚽 Toilet", Callback = function()
+    tab:CreateButton({Name = "🚽 Toilet", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         local ok = invokeHardcodedFurnitureAction("toilet", pet)
         status.updateStatus(ok and (pet.Name .. " is using toilet") or "Toilet failed")
-    end})
+    end)})
 
-    tab:CreateButton({Name = "🚶 Walk Pet", Callback = function()
+    tab:CreateButton({Name = "🚶 Walk Pet", Callback = wrapCallback(function()
         local pet = resolveSelectedPet()
         if not pet then status.updateStatus("No pet selected") return end
         if not stillWalk(pet) then
@@ -373,15 +394,15 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
         status.updateStatus("Walking pet")
         local ok = Toys.walkWithPet(player, HoldBaby, pet, stillWalk)
         status.updateStatus(ok and "Walk done" or "Walk failed")
-    end})
+    end)})
 
     tab:CreateToggle({
         Name = "🤖 Autofarm Enabled",
         CurrentValue = false,
         Flag = "AutoFarmToggle",
-        Callback = function(value)
+        Callback = wrapCallback(function(value)
             setAutofarmEnabled(value)
-        end,
+        end),
     })
 
     refreshPets()
