@@ -420,25 +420,13 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         },
     }
 
-    local function detachPetFromHead(pet)
-        if not pet then
-            return
-        end
-        local petPart = pet:FindFirstChild("PetActionHeadWeld", true)
-        if petPart and petPart:IsA("WeldConstraint") then
-            petPart:Destroy()
-        end
-    end
-
     local function invokeHardcodedFurnitureAction(actionKey, pet)
         local action = localFurnitureActions[actionKey]
         if not action or not pet then
             return false
         end
 
-        attachPetToHead(pet)
         local ok, result = invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
-        detachPetFromHead(pet)
         if ok then
             return result ~= false
         end
