@@ -420,6 +420,90 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         },
     }
 
+    local function useFurniture(needType, pet)
+        pet = pet or getPet()
+        if not pet then
+            return false
+        end
+
+        local id, target, partName
+        local findFunc = nil
+
+        if needType == "food" then
+            findFunc = Care.FindFood
+            partName = "UseBlock"
+        elseif needType == "drink" then
+            findFunc = Care.FindDrink
+            partName = "UseBlock"
+        elseif needType == "shower" then
+            findFunc = Care.FindShower
+            partName = "UseBlock"
+        elseif needType == "toilet" then
+            findFunc = Care.FindToilet
+            partName = "Seat1"
+        elseif needType == "bed" then
+            findFunc = Sleep.FindBed
+            partName = "Seat1"
+        else
+            return false
+        end
+
+        -- Try to find furniture locally
+        id, target = findFunc()
+
+        -- If this is a house need, ignore any non-house target so we always load the house
+        local homeNeed = needType == "food" or needType == "drink" or needType == "shower" or needType == "toilet" or needType == "bed"
+        local houseInteriors = workspace:FindFirstChild("HouseInteriors")
+        if homeNeed and target and (not houseInteriors or not target:IsDescendantOf(houseInteriors)) then
+            print("[ui] useFurniture: ignoring outside target for house need", needType, safeName(target))
+            id, target = nil, nil
+        end
+
+        -- If the found target is part of HouseInteriors, prefer entering the house first
+        if target and workspace:FindFirstChild("HouseInteriors") and target:IsDescendantOf(workspace.HouseInteriors) then
+            print("[ui] useFurniture: target inside HouseInteriors — entering house for", needType)
+            setStatus("TPing to house for " .. needType)
+            if not enterHouseViaDoor() then
+                print("[ui] enterHouseViaDoor failed")
+                return false
+            end
+            id, target = findFunc()
+            print("[ui] re-scan after entering house — found:", id, safeName(target))
+        end
+
+        -- If not found, attempt entering house and rescanning a few times
+        if not id or not target then
+            for i = 1, 3 do
+                setStatus("TPing to house for " .. needType)
+                print("[ui] useFurniture: attempt", i, "to enter house and rescan for", needType)
+                if enterHouseViaDoor() then
+                    id, target = findFunc()
+                    print("[ui] useFurniture: rescan result:", id, safeName(target))
+                    if id and target then
+                        break
+                    end
+                else
+                    print("[ui] useFurniture: enterHouseViaDoor failed on attempt", i)
+                end
+                task.wait(1)
+            end
+            if not id or not target then
+                return false
+            end
+        end
+
+        if not id or not target then
+            return false
+        end
+
+        local cf = resolveCFrame(target, partName)
+        if not cf then
+            return false
+        end
+
+        return invokeFurnitureRemote(player, id, partName, {cframe = cf}, pet)
+    end
+
     local function invokeHardcodedFurnitureAction(actionKey, pet)
         local action = localFurnitureActions[actionKey]
         if not action or not pet then
