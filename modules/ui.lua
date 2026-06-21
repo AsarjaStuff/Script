@@ -449,8 +449,18 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             return false
         end
 
+        if type(findFunc) ~= "function" then
+            warn("[ui] useFurniture: missing finder for", needType)
+            return false
+        end
+
         -- Try to find furniture locally
-        id, target = findFunc()
+        local ok, result1, result2 = pcall(findFunc)
+        if not ok then
+            warn("[ui] useFurniture: findFunc failed for", needType, result1)
+            return false
+        end
+        id, target = result1, result2
 
         -- If this is a house need, ignore any non-house target so we always load the house
         local homeNeed = needType == "food" or needType == "drink" or needType == "shower" or needType == "toilet" or needType == "bed"
@@ -463,28 +473,53 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         -- If the found target is part of HouseInteriors, prefer entering the house first
         if target and workspace:FindFirstChild("HouseInteriors") and target:IsDescendantOf(workspace.HouseInteriors) then
             print("[ui] useFurniture: target inside HouseInteriors — entering house for", needType)
-            setStatus("TPing to house for " .. needType)
-            if not enterHouseViaDoor() then
-                print("[ui] enterHouseViaDoor failed")
+            if type(setStatus) == "function" then
+                setStatus("TPing to house for " .. needType)
+            end
+            if type(enterHouseViaDoor) ~= "function" then
+                warn("[ui] useFurniture: enterHouseViaDoor missing")
                 return false
             end
-            id, target = findFunc()
+            local ok2, entered = pcall(enterHouseViaDoor)
+            if not ok2 or not entered then
+                warn("[ui] enterHouseViaDoor failed", entered)
+                return false
+            end
+            local ok3, result3, result4 = pcall(findFunc)
+            if not ok3 then
+                warn("[ui] useFurniture: findFunc failed after entering house for", needType, result3)
+                return false
+            end
+            id, target = result3, result4
             print("[ui] re-scan after entering house — found:", id, safeName(target))
         end
 
         -- If not found, attempt entering house and rescanning a few times
         if not id or not target then
             for i = 1, 3 do
-                setStatus("TPing to house for " .. needType)
+                if type(setStatus) == "function" then
+                    setStatus("TPing to house for " .. needType)
+                end
                 print("[ui] useFurniture: attempt", i, "to enter house and rescan for", needType)
-                if enterHouseViaDoor() then
-                    id, target = findFunc()
-                    print("[ui] useFurniture: rescan result:", id, safeName(target))
-                    if id and target then
-                        break
+                if type(enterHouseViaDoor) == "function" then
+                    local ok2, entered = pcall(enterHouseViaDoor)
+                    if ok2 and entered then
+                        local ok3, result3, result4 = pcall(findFunc)
+                        if not ok3 then
+                            warn("[ui] useFurniture: findFunc failed during rescan for", needType, result3)
+                            id, target = nil, nil
+                        else
+                            id, target = result3, result4
+                        end
+                        print("[ui] useFurniture: rescan result:", id, safeName(target))
+                        if id and target then
+                            break
+                        end
+                    else
+                        print("[ui] useFurniture: enterHouseViaDoor failed on attempt", i, entered)
                     end
                 else
-                    print("[ui] useFurniture: enterHouseViaDoor failed on attempt", i)
+                    print("[ui] useFurniture: enterHouseViaDoor missing on attempt", i)
                 end
                 task.wait(1)
             end
