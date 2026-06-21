@@ -219,6 +219,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     local track = PetState.TRACKED_AILMENTS
 
     local houseReady = false
+    local setStatus = function(t) end
 
     local function isInsideHouse()
         return workspace:FindFirstChild("HouseInteriors") ~= nil
@@ -845,7 +846,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     ControlsTab:CreateSection("Status")
     local StatusLabel = ControlsTab:CreateLabel("Status: Ready")
 
-    local function setStatus(t)
+    setStatus = function(t)
         setLabel(StatusLabel, "Status: " .. t, COLOR_DIM)
     end
 
