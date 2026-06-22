@@ -628,7 +628,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             table.sort(k)
             setLabel(RawLabel, "Signals: " .. table.concat(k, ", "), COLOR_DIM)
         else
-            setLabel(RawLabel, "Signals: awaiting ailments_manager", COLOR_DIM)
+            if PetState.findStateId(pet) then
+                setLabel(RawLabel, "Signals: no ailments_manager data for this pet", COLOR_DIM)
+            else
+                setLabel(RawLabel, "Signals: awaiting ailments_manager", COLOR_WARN)
+            end
         end
         setLabel(
             AutofarmLabel,
@@ -914,6 +918,11 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
             local p = getPet()
             if p then
                 PetState.debugPetNeeds(p, "manual")
+                if not PetState.findStateId(p) then
+                    setStatus("No ailments_manager state yet for selected pet")
+                end
+            else
+                setStatus("No pet selected")
             end
         end,
     })

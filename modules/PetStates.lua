@@ -149,9 +149,21 @@ function PetStates.Init()
         resolvePetId = resolvePetId,
         findStateId = findStateId,
         debugPetNeeds = function(pet, src)
-            if not pet then return end
-            local st, sid = getState(pet)
-            print("[PET NEEDS]", src, pet.Name, sid, st and "ok" or "no state")
+            if not pet then
+                print("[PET NEEDS]", src or "?", "no pet")
+                return
+            end
+            local state, stateId = getState(pet)
+            if not state then
+                local petId = resolvePetId(pet)
+                local candidates = petIdCandidates(pet)
+                print("[PET NEEDS]", src or "?", "pet=" .. pet.Name, "resolveId=" .. tostring(petId), "stateId=nil")
+                if #candidates > 0 then
+                    print("[PET NEEDS] candidate ids:", table.concat(candidates, ", "))
+                end
+                return
+            end
+            print("[PET NEEDS]", src or "?", pet.Name, stateId, "ok")
         end,
         isDirty = function(p) return hasNeed(p, "dirty") end,
         isSleepy = function(p) return hasNeed(p, "sleepy") end,
