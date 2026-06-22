@@ -100,8 +100,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
 
         local ok, result = pcall(function()
             if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
-                ActivateFurniture:FireServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
-                return true
+                return ActivateFurniture:FireServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
             elseif ActivateFurniture and ActivateFurniture.ClassName == "RemoteFunction" then
                 return ActivateFurniture:InvokeServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
             else
@@ -113,8 +112,33 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
             return true
         end
 
-        warn("[ui] hardcoded furniture action failed for", actionKey, result)
-        return false
+        warn("[ui] hardcoded furniture action failed for", actionKey, "— falling back to dynamic detection:", result)
+        local fallbackOk, fallbackResult = pcall(function()
+            if actionKey == "food" then
+                local furnitureId, obj = Care.FindFood()
+                return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "food", pet)
+            elseif actionKey == "drink" then
+                local furnitureId, obj = Care.FindDrink()
+                return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "drink", pet)
+            elseif actionKey == "shower" then
+                local furnitureId, obj = Care.FindShower()
+                return furniture.performFurnitureActivation(furnitureId, obj, "UseBlock", "shower", pet)
+            elseif actionKey == "toilet" then
+                local furnitureId, seat = Care.FindToilet()
+                return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "toilet", pet)
+            elseif actionKey == "bed" then
+                local furnitureId, seat = Sleep.FindBed()
+                return furniture.performFurnitureActivation(furnitureId, seat, "Seat1", "bed", pet)
+            end
+            return false
+        end)
+
+        if not fallbackOk then
+            warn("[ui] fallback furniture action error for", actionKey, fallbackResult)
+            return false
+        end
+
+        return fallbackResult
     end
 
     local function refreshSelectedPetStatus()

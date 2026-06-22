@@ -384,28 +384,90 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         },
     }
 
+    local function useFurniture(needType, pet)
+        pet = pet or getPet()
+        if not pet then
+            return false
+        end
+
+        local id, target, partName
+        local findFunc = nil
+
+        if needType == "food" then
+            findFunc = Care.FindFood
+            partName = "UseBlock"
+        elseif needType == "drink" then
+            findFunc = Care.FindDrink
+            partName = "UseBlock"
+        elseif needType == "shower" then
+            findFunc = Care.FindShower
+            partName = "UseBlock"
+        elseif needType == "toilet" then
+            findFunc = Care.FindToilet
+            partName = "Seat1"
+        elseif needType == "bed" then
+            findFunc = Sleep.FindBed
+            partName = "Seat1"
+        else
+            return false
+        end
+
+        if type(findFunc) ~= "function" then
+            warn("[ui] useFurniture: missing finder for", needType)
+            return false
+        end
+
+        local ok, result1, result2 = pcall(findFunc)
+        if not ok then
+            warn("[ui] useFurniture: finder threw for", needType, result1)
+            return false
+        end
+        id, target = result1, result2
+
+        if not id or not target then
+            warn("[ui] useFurniture: furniture not found for", needType)
+            return false
+        end
+
+        local cf = resolveCFrame(target, partName)
+        if not cf then
+            warn("[ui] useFurniture: target has no CFrame for", needType)
+            return false
+        end
+
+        return invokeFurnitureRemote(player, id, partName, {cframe = cf}, pet)
+    end
+
     local function invokeHardcodedFurnitureAction(actionKey, pet)
         local action = localFurnitureActions[actionKey]
         if not action or not pet then
             return false
         end
 
-        local ok, result = pcall(function()
-            if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
-                ActivateFurniture:FireServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        if type(useFurniture) ~= "function" then
+            warn("[ui] invokeHardcodedFurnitureAction: useFurniture is missing")
+        else
+            local ok, result = pcall(function()
+                return useFurniture(actionKey, pet)
+            end)
+            if ok and result then
                 return true
-            elseif ActivateFurniture and ActivateFurniture.ClassName == "RemoteFunction" then
-                return ActivateFurniture:InvokeServer(player, action.id, action.partName, {cframe = action.cframe}, pet)
-            else
-                error("ActivateFurniture remote missing")
             end
-        end)
+            if not ok then
+                warn("[ui] useFurniture error for", actionKey, result)
+            else
+                warn("[ui] dynamic furniture lookup failed for", actionKey, "— falling back to static furniture action")
+            end
+        end
 
-        if ok and result ~= false then
+        local ok2, result2 = pcall(function()
+            return invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        end)
+        if ok2 and result2 ~= false then
             return true
         end
 
-        warn("[ui] hardcoded furniture action failed for", actionKey, result)
+        warn("[ui] hardcoded furniture action failed for", actionKey, ":", result2)
         return false
     end
 
