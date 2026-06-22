@@ -51,13 +51,23 @@ function PetStates.Init()
         return tostring(pet:GetAttribute("unique") or pet:GetAttribute("id") or pet.Name)
     end
 
+    local function normalizeId(value)
+        if value == nil then
+            return nil
+        end
+        local stringValue = tostring(value)
+        if stringValue == "" then
+            return nil
+        end
+        return string.lower(stringValue)
+    end
+
     local function petIdCandidates(pet)
         local candidates = {}
         local seen = {}
         local function add(value)
-            if value == nil then return end
-            local key = tostring(value)
-            if key ~= "" and not seen[key] then
+            local key = normalizeId(value)
+            if key and not seen[key] then
                 seen[key] = true
                 table.insert(candidates, key)
             end
@@ -70,17 +80,22 @@ function PetStates.Init()
 
     local function findStateId(pet)
         if not pet then return nil end
-        for _, candidate in ipairs(petIdCandidates(pet)) do
-            if PetStateById[candidate] then return candidate end
-        end
-        for stateId in pairs(PetStateById) do
-            for _, candidate in ipairs(petIdCandidates(pet)) do
-                if tostring(stateId) == candidate then return stateId end
+        local candidates = petIdCandidates(pet)
+        for _, candidate in ipairs(candidates) do
+            for stateId in pairs(PetStateById) do
+                if normalizeId(stateId) == candidate then
+                    return stateId
+                end
             end
         end
         local count, onlyId = 0, nil
-        for stateId in pairs(PetStateById) do count = count + 1 onlyId = stateId end
-        if count == 1 then return onlyId end
+        for stateId in pairs(PetStateById) do
+            count = count + 1
+            onlyId = stateId
+        end
+        if count == 1 then
+            return onlyId
+        end
         return nil
     end
 
