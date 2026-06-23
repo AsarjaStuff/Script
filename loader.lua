@@ -88,3 +88,46 @@ else
         end
     end
 end
+
+-- Periodically ensure we are subscribed to house data so DataAPI pushes ailments updates.
+do
+    local success, err = pcall(function()
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local API = ReplicatedStorage:FindFirstChild("API")
+        if not API then
+            warn("Subscribe loop: API folder not found in ReplicatedStorage")
+            return
+        end
+        local sub = API:FindFirstChild("HousingAPI/SubscribeToHouse")
+        if not sub then
+            local housing = API:FindFirstChild("HousingAPI")
+            if housing then
+                sub = housing:FindFirstChild("SubscribeToHouse")
+            end
+        end
+        if not sub or type(sub.FireServer) ~= "function" then
+            warn("Subscribe loop: SubscribeToHouse remote not found or not a RemoteEvent/Function")
+            return
+        end
+
+        task.spawn(function()
+            local Players = game:GetService("Players")
+            local me = Players.LocalPlayer
+            while true do
+                local ok, e = pcall(function()
+                    sub:FireServer(me)
+                end)
+                if not ok then
+                    warn("Subscribe loop: FireServer failed:", e)
+                else
+                    -- subtle confirmation for debugging
+                    -- print("Subscribe loop: fired SubscribeToHouse")
+                end
+                task.wait(20)
+            end
+        end)
+    end)
+    if not success then
+        warn("Subscribe loop init failed:", err)
+    end
+end

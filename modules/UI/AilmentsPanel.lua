@@ -55,8 +55,24 @@ function AilmentsPanel.Create(tab, PetState, getSelectedPet)
             false
         )
 
+        -- debug: print active keys and per-ailment resolved booleans to help diagnose UI mismatches
+        local ok, active = pcall(function() return PetState.getActive(pet) end)
+        if not ok or not active then
+            print("[AilmentsPanel] no active keys for pet=", pet and pet.Name or "?", "stateId=", stateId)
+        else
+            local keys = {}
+            for k in pairs(active) do table.insert(keys, k) end
+            table.sort(keys)
+            print("[AilmentsPanel] pet=", pet.Name, "stateId=", stateId, "active_keys=", table.concat(keys, ", "))
+        end
+
         for _, name in ipairs(ailmentsToTrack) do
-            setAilmentLabel(name, PetState.hasNeed(pet, name))
+            local ok2, have = pcall(function() return PetState.hasNeed(pet, name) end)
+            if not ok2 then
+                have = false
+            end
+            print("[AilmentsPanel] need=", name, "hasNeed=", tostring(have))
+            setAilmentLabel(name, have)
         end
 
         local active = PetState.getActive(pet)
