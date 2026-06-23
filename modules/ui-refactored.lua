@@ -9,17 +9,11 @@ local Furniture = require(script.Parent:FindFirstChild("Utils"):FindFirstChild("
 local UIWindow = require(script.Parent:FindFirstChild("UI"):FindFirstChild("Window"))
 local UIStatus = require(script.Parent:FindFirstChild("UI"):FindFirstChild("Status"))
 local AilmentsPanel = require(script.Parent:FindFirstChild("UI"):FindFirstChild("AilmentsPanel"))
-local HouseData = require(script.Parent:FindFirstChild("HouseData"))
 
 local UI = {}
 
-function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements, houseData)
+function UI.Init(Pets, Sleep, Care, Remotes, PetState)
     PetState = PetState or PetStates.Init()
-    
-    -- Initialize house data if provided (optional Cobalt house_interior data)
-    if type(houseData) == "table" and houseData.furniture then
-        HouseData.setCacheData(houseData)
-    end
 
     local player = game:GetService("Players").LocalPlayer
     local HoldBaby = Remotes.HoldBaby
@@ -103,11 +97,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements, house
         if not action or not pet then
             return false
         end
-
-        -- Ensure house data is loaded before furniture action
-        pcall(function()
-            HouseData.ensureLoaded(player.Name)
-        end)
 
         local ok, result = pcall(function()
             if ActivateFurniture and ActivateFurniture.ClassName == "RemoteEvent" then
