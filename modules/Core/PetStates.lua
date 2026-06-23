@@ -18,12 +18,12 @@ local NEED_ALIASES = {
     sleepy = {"sleepy", "tired", "needsleep", "needs_sleep", "sleep"},
     dirty = {"dirty", "stinky", "stink", "needsbath", "needs_bath", "bath"},
     hungry = {"hungry", "hunger", "feed", "needsfood", "needs_food", "starving"},
-    thirsty = {"thirsty", "thirst", "needsdrink", "needs_drink", "drink", "hydration"},
-    toilet = {"toilet", "pee", "poop", "restroom"},
-    school = {"school"},
+    thirsty = {"thirsty", "thirst", "needsdrink", "needs_drink", "drink", "hydration", "water", "water_bowl", "drink_bowl", "bottle"},
+    toilet = {"toilet", "pee", "poop", "restroom", "bathroom"},
+    school = {"school", "learning", "class"},
     pet_me = {"pet_me", "petme", "pet", "play", "squeaky_bone_default"},
-    play = {"play", "pet_me", "squeaky_bone_default", "squeaky"},
-    walk = {"walk", "walking", "go_walk"},
+    play = {"play", "pet_me", "squeaky_bone_default", "squeaky", "toy"},
+    walk = {"walk", "walking", "go_walk", "walking"},
 }
 
 function PetStates.Init()
@@ -44,30 +44,69 @@ function PetStates.Init()
         end
     end
 
-    local function resolvePetId(pet)
-        if not pet or not pet:IsA("Model") then
+    local PET_ID_KEYS = {
+        "unique",
+        "id",
+        "petId",
+        "pet_id",
+        "unique_id",
+        "uid",
+        "guid",
+        "PetID",
+        "PetId",
+    }
+
+    local function normalizeId(value)
+        if value == nil then
             return nil
         end
-        return tostring(pet:GetAttribute("unique") or pet:GetAttribute("id") or pet.Name)
+        local key = tostring(value)
+        if key == "" then
+            return nil
+        end
+        return key:lower()
     end
 
-    local function petIdCandidates(pet)
+    local function collectPetIds(pet)
         local candidates = {}
         local seen = {}
         local function add(value)
-            if value == nil then
-                return
-            end
-            local key = tostring(value)
-            if key ~= "" and not seen[key] then
+            local key = normalizeId(value)
+            if key and not seen[key] then
                 seen[key] = true
                 table.insert(candidates, key)
             end
         end
-        add(pet:GetAttribute("unique"))
-        add(pet:GetAttribute("id"))
+
+        if not pet or not pet:IsA("Model") then
+            return candidates
+        end
+
+        for _, attr in ipairs(PET_ID_KEYS) do
+            add(pet:GetAttribute(attr))
+        end
+        if pet.PrimaryPart then
+            for _, attr in ipairs(PET_ID_KEYS) do
+                add(pet.PrimaryPart:GetAttribute(attr))
+            end
+        end
+        for _, name in ipairs(PET_ID_KEYS) do
+            local child = pet:FindFirstChild(name, true)
+            if child and child:IsA("ValueBase") then
+                add(child.Value)
+            end
+        end
         add(pet.Name)
         return candidates
+    end
+
+    local function resolvePetId(pet)
+        local candidates = collectPetIds(pet)
+        return candidates[1]
+    end
+
+    local function petIdCandidates(pet)
+        return collectPetIds(pet)
     end
 
     local function findStateId(pet)
@@ -178,7 +217,10 @@ function PetStates.Init()
 
         for petId, ailmentTable in pairs(data.ailments) do
             if type(ailmentTable) == "table" then
-                PetStateById[tostring(petId)] = parsePetAilments(petId, ailmentTable)
+                local normalizedId = normalizeId(petId)
+                if normalizedId then
+                    PetStateById[normalizedId] = parsePetAilments(petId, ailmentTable)
+                end
             end
         end
 
