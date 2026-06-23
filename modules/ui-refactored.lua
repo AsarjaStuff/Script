@@ -66,17 +66,17 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
 
     local localFurnitureActions = {
         food = {
-            id = "f-20",
+            id = "f-16",
             partName = "UseBlock",
             cframe = CFrame.new(-5979.0981445312, 4000.6198730469, -9018.005859375, 0, 0, -1, 0, 1, 0, 1, 0, 0),
         },
         drink = {
-            id = "f-16",
+            id = "f-2",
             partName = "UseBlock",
             cframe = CFrame.new(-5979.0966796875, 4000.6198730469, -9021.0029296875, 0, 0, -1, 0, 1, 0, 1, 0, 0),
         },
         shower = {
-            id = "f-3",
+            id = "f-13",
             partName = "UseBlock",
             cframe = CFrame.new(-5960.5434570312, 4000.7026367188, -9008.4345703125, -1, 0, 0, 0, 1, 0, 0, 0, -1),
         },
