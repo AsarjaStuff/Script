@@ -66,7 +66,7 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState)
 
     local localFurnitureActions = {
         food = {
-            id = "f-2",
+            id = "f-20",
             partName = "UseBlock",
             cframe = CFrame.new(-5979.0981445312, 4000.6198730469, -9018.005859375, 0, 0, -1, 0, 1, 0, 1, 0, 0),
         },
