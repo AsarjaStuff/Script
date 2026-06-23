@@ -41,25 +41,44 @@ local function resolveTarget(obj)
     return obj:FindFirstChildOfClass("BasePart")
 end
 
-local function findFurniturePartByKeywords(partName, keywords)
+local function findFurniturePartByKeywords(partName, keywords, excludeKeywords)
+    -- keywords: array of strings to match in ancestor text (preferred)
+    -- excludeKeywords: optional array of strings that if present should disqualify a match
     local candidates = {}
+    local function textMatches(lowerText, list)
+        for _, kw in ipairs(list or {}) do
+            if lowerText:find(kw) then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- first pass: prefer matches that include any keyword and do NOT include any exclude keyword
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == partName then
             local furnitureId = getFurnitureId(obj)
             local text = getAncestorText(obj)
             if furnitureId then
                 local lowerText = text:lower()
-                for _, keyword in ipairs(keywords) do
-                    if lowerText:find(keyword) then
-                        print("DEBUG: matched care furniture", partName, obj:GetFullName(), furnitureId, text)
-                        return furnitureId, obj
-                    end
+                if textMatches(lowerText, keywords) and not textMatches(lowerText, excludeKeywords) then
+                    print("DEBUG: matched care furniture (strict)", partName, obj:GetFullName(), furnitureId, text)
+                    return furnitureId, obj
                 end
-                table.insert(candidates, {id = furnitureId, obj = obj, text = text})
+                table.insert(candidates, {id = furnitureId, obj = obj, text = text, lower = lowerText})
             end
         end
     end
 
+    -- fallback: try any candidate that matches keywords even if exclude present
+    for _, c in ipairs(candidates) do
+        if textMatches(c.lower, keywords) then
+            print("DEBUG: matched care furniture (loose)", partName, c.obj:GetFullName(), c.id, c.text)
+            return c.id, c.obj
+        end
+    end
+
+    -- final fallback: return first candidate
     if #candidates > 0 then
         print("DEBUG: care furniture fallback", partName, candidates[1].id, candidates[1].obj:GetFullName())
         return candidates[1].id, candidates[1].obj
@@ -69,11 +88,13 @@ local function findFurniturePartByKeywords(partName, keywords)
 end
 
 function Care.FindFood()
-    return findFurniturePartByKeywords("UseBlock", {"food", "feed", "bowl", "dish", "plate", "kibble", "eat"})
+    -- Exclude water-related bowls when searching for food to avoid misidentifying water bowls as food
+    return findFurniturePartByKeywords("UseBlock", {"food", "feed", "kibble", "eat", "dish", "plate"}, {"water", "drink", "petwater", "waterbowl"})
 end
 
 function Care.FindDrink()
-    return findFurniturePartByKeywords("UseBlock", {"drink", "water", "fountain", "bowl", "cup", "sip"})
+    -- Exclude clearly food-specific furniture when searching for drink
+    return findFurniturePartByKeywords("UseBlock", {"drink", "water", "fountain", "cup", "sip", "waterbowl"}, {"kibble", "food", "eat", "dish", "plate"})
 end
 
 function Care.FindShower()
