@@ -356,34 +356,6 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
         return false, "ActivateFurniture remote missing"
     end
 
-    local localFurnitureActions = {
-        food = {
-            id = "f-29",
-            partName = "UseBlock",
-            cframe = CFrame.new(-5979.0981445312, 4000.6198730469, -9018.005859375, 0, 0, -1, 0, 1, 0, 1, 0, 0),
-        },
-        drink = {
-            id = "f-16",
-            partName = "UseBlock",
-            cframe = CFrame.new(-5979.0966796875, 4000.6198730469, -9021.0029296875, 0, 0, -1, 0, 1, 0, 1, 0, 0),
-        },
-        shower = {
-            id = "f-3",
-            partName = "UseBlock",
-            cframe = CFrame.new(-5960.5434570312, 4000.7026367188, -9008.4345703125, -1, 0, 0, 0, 1, 0, 0, 0, -1),
-        },
-        toilet = {
-            id = "f-20",
-            partName = "Seat1",
-            cframe = CFrame.new(-5961.6484375, 4003.1552734375, -9012.5, 0, 0, 1, 0, 1, 0, -1, 0, 0),
-        },
-        bed = {
-            id = "f-7",
-            partName = "Seat1",
-            cframe = CFrame.new(-5987.7016601562, 4002.6306152344, -9029.9853515625, 0, 0, -1, 0, 1, 0, 1, 0, 0),
-        },
-    }
-
     local function useFurniture(needType, pet)
         pet = pet or getPet()
         if not pet then
@@ -439,35 +411,23 @@ function UI.Init(Pets, Sleep, Care, Remotes, PetState, Toys, Requirements)
     end
 
     local function invokeHardcodedFurnitureAction(actionKey, pet)
-        local action = localFurnitureActions[actionKey]
-        if not action or not pet then
+        if type(useFurniture) ~= "function" then
+            warn("[ui] invokeHardcodedFurnitureAction: useFurniture is missing")
             return false
         end
 
-        if type(useFurniture) ~= "function" then
-            warn("[ui] invokeHardcodedFurnitureAction: useFurniture is missing")
-        else
-            local ok, result = pcall(function()
-                return useFurniture(actionKey, pet)
-            end)
-            if ok and result then
-                return true
-            end
-            if not ok then
-                warn("[ui] useFurniture error for", actionKey, result)
-            else
-                warn("[ui] dynamic furniture lookup failed for", actionKey, "— falling back to static furniture action")
-            end
-        end
-
-        local ok2, result2 = pcall(function()
-            return invokeFurnitureRemote(player, action.id, action.partName, {cframe = action.cframe}, pet)
+        local ok, result = pcall(function()
+            return useFurniture(actionKey, pet)
         end)
-        if ok2 and result2 ~= false then
+        if ok and result then
             return true
         end
 
-        warn("[ui] hardcoded furniture action failed for", actionKey, ":", result2)
+        if not ok then
+            warn("[ui] useFurniture error for", actionKey, result)
+        else
+            warn("[ui] dynamic furniture lookup failed for", actionKey)
+        end
         return false
     end
 
